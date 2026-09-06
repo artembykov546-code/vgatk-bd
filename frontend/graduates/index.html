@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архив студентов | vgatk_bd</title>
+    
+    <!-- ===== FAVICON ===== -->
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+    
+    <!-- ===== ШРИФТЫ ===== -->
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+    
+    <!-- ===== ЕДИНЫЙ ФАЙЛ ДИЗАЙНА ===== -->
+    <link rel="stylesheet" href="/css/components.css">
+    
+    <!-- ===== СКРИПТЫ СЕССИИ ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/session.js"></script>
+    <script src="/js/session-init.js"></script>
+    
+    <!-- ===== html2pdf ДЛЯ PDF ===== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- ===== FileSaver ДЛЯ DOC ===== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <style>
+        .page-container { max-width: 1400px; margin: 0 auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-title { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .page-title small { font-weight: 400; font-size: 14px; color: var(--text-muted); }
+        .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-box { background: var(--bg-card); padding: 16px 20px; border-radius: var(--border-radius-lg); border: 1px solid var(--border); text-align: center; box-shadow: var(--shadow); transition: var(--transition); cursor: pointer; }
+        .stat-box:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); border-color: var(--primary-light); }
+        .stat-box .number { font-size: 28px; font-weight: 700; color: var(--primary); }
+        .stat-box .label { font-size: 13px; color: var(--text-muted); }
+        .stat-box.active { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+
+        .filters-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filters-bar select, .filters-bar input { padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--border-radius); font-size: 14px; background: var(--bg-card); transition: var(--transition); }
+        .filters-bar select:focus, .filters-bar input:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .filters-bar input { flex: 1; min-width: 200px; }
+
+        .badge-type { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .badge-sso { background: #D6EAF8; color: #1A5276; }
+        .badge-pto { background: #FDEBD0; color: #7E5109; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state .icon { font-size: 64px; display: block; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 20px; color: var(--text-primary); margin-bottom: 8px; }
+
+        /* ===== КАРТОЧКИ КАК В STUDENTS ===== */
+        .type-section { margin-bottom: 32px; }
+        .type-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+        .type-header .icon { font-size: 28px; }
+        .type-header h2 { font-size: 20px; font-weight: 600; color: var(--primary); }
+        .type-header .count { font-size: 14px; color: var(--text-muted); background: rgba(255, 255, 255, 0.8); padding: 2px 12px; border-radius: 20px; }
+
+        .year-block { margin-bottom: 16px; }
+        .year-header { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(255, 255, 255, 0.8); border-radius: var(--border-radius); cursor: pointer; user-select: none; transition: var(--transition); border: 1px solid var(--border); }
+        .year-header:hover { background: rgba(255, 255, 255, 0.95); border-color: var(--primary-light); }
+        .year-header .year-label { font-weight: 600; font-size: 15px; color: var(--text-secondary); }
+        .year-header .year-count { font-size: 13px; color: var(--text-muted); }
+        .year-header .arrow { font-size: 14px; color: var(--text-muted); transition: transform 0.3s; margin-left: auto; }
+        .year-header .arrow.open { transform: rotate(90deg); }
+
+        /* ===== СЕТКА КАРТОЧЕК (ГОРИЗОНТАЛЬНО) ===== */
+        .year-groups { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+            gap: 16px; 
+            padding: 12px 0; 
+        }
+        .year-groups.hidden { display: none; }
+
+        .group-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius-lg);
+            padding: 18px 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+        .group-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--primary-light);
+        }
+        .group-card .group-name { 
+            font-size: 18px; 
+            font-weight: 700; 
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .group-card .group-name:hover {
+            text-decoration: underline;
+        }
+        .group-card .group-meta { font-size: 13px; color: var(--text-muted); margin: 4px 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .group-card .group-students { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; }
+        
+        /* ===== СПЕЦИАЛЬНОСТИ ТЕГАМИ ===== */
+        .group-card .group-specialties {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 6px 0 8px;
+        }
+        .group-card .group-specialties .specialty-tag {
+            display: inline-block;
+            padding: 1px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            background: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #86EFAC;
+        }
+        
+        .group-card .group-footer { 
+            margin-top: auto; 
+            padding-top: 8px; 
+            border-top: 1px solid var(--border); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 8px; 
+        }
+        .group-card .group-footer .qualification-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            flex: 1;
+            min-width: 100px;
+        }
+        .group-card .group-actions { display: flex; gap: 6px; }
+
+        /* ===== ВЫДЕЛЕННАЯ КНОПКА РАСПРЕДЕЛЕНИЯ ===== */
+        .btn-distribution-highlight {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        .btn-distribution-highlight:hover {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            transform: translateY(-1px);
+        }
+
+        .btn-export-pdf { background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); color: white; }
+        .btn-export-pdf:hover { background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); }
+        .btn-export-doc { background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); color: white; }
+        .btn-export-doc:hover { background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%); }
+
+        .toast-notification {
+            position: fixed; top: 80px; right: 20px; padding: 16px 24px;
+            border-radius: var(--border-radius); color: white; font-weight: 600;
+            z-index: 9999; animation: slideUp 0.3s ease; max-width: 400px;
+            box-shadow: var(--shadow-modal);
+        }
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+        .toast-info { background: var(--primary-light); }
+        .toast-notification .toast-close { float: right; margin-left: 16px; cursor: pointer; font-size: 18px; opacity: 0.8; }
+        .toast-notification .toast-close:hover { opacity: 1; }
+
+        /* Стили для PDF */
+        .pdf-hidden { display: none; }
+        .pdf-content {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            padding: 20px;
+            background: white;
+            color: #000;
+            max-width: 100%;
+        }
+        .pdf-content .pdf-header {
+            text-align: center;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+        .pdf-content .pdf-header .pdf-title {
+            font-size: 18pt;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .pdf-content .pdf-header .pdf-subtitle {
+            font-size: 14pt;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .pdf-content .pdf-header .pdf-info {
+            font-size: 11pt;
+            margin-top: 4px;
+            color: #555;
+        }
+        .pdf-content .pdf-section-title {
+            font-size: 13pt;
+            font-weight: 700;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #ccc;
+        }
+        .pdf-content .pdf-row {
+            display: flex;
+            padding: 3px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 11pt;
+        }
+        .pdf-content .pdf-row .pdf-label {
+            font-weight: 600;
+            width: 160px;
+            flex-shrink: 0;
+            color: #333;
+        }
+        .pdf-content .pdf-row .pdf-value {
+            flex: 1;
+            color: #000;
+        }
+        .pdf-content .pdf-footer {
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px solid #000;
+            text-align: center;
+            font-size: 11pt;
+        }
+
+        @media (max-width: 768px) {
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .filters-bar { flex-direction: column; }
+            .filters-bar input { width: 100%; }
+            .filters-bar select { width: 100%; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .header-actions { width: 100%; }
+            .header-actions .btn { flex: 1; font-size: 12px; padding: 6px 10px; }
+            .year-groups { grid-template-columns: 1fr; }
+            .page-title { font-size: 20px; }
+            .toast-notification { left: 20px; right: 20px; top: 80px; }
+            .group-card .group-footer { flex-direction: column; align-items: stretch; }
+            .group-card .group-actions { justify-content: center; }
+        }
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr; }
+            .year-groups { grid-template-columns: 1fr; }
+            .page-title { font-size: 18px; }
+            .header-actions .btn { font-size: 10px; padding: 4px 8px; }
+            .group-card { padding: 12px; }
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .header, .sidebar, .page-header .header-actions { display: none !important; }
+            .main-content { margin-left: 0 !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+    <div class="header-logo">
+        <span class="college-name">
+            Учреждение образования<br>
+            <span class="sub">"Витебский государственный аграрно-технический колледж"</span>
+        </span>
+    </div>
+    <div class="header-user">
+        <div class="header-user-info">
+            <div class="header-user-name" id="userNameDisplay">Загрузка...</div>
+            <div class="header-user-role" id="userRoleDisplay">Загрузка...</div>
+        </div>
+        <button class="btn-logout" id="logoutBtn">🚪 Выйти</button>
+    </div>
+</header>
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar" id="sidebar">
+    <ul class="sidebar-nav">
+        <li class="nav-label">Главное</li>
+        <li><a href="/dashboard.html"><span class="icon">🏠</span> Главная</a></li>
+        <li><a href="/employees/index.html"><span class="icon">👨‍🏫</span> Сотрудники</a></li>
+        <li><a href="/students/index.html"><span class="icon">👨‍🎓</span> Учащиеся</a></li>
+        <li><a href="/graduates/index.html" class="active"><span class="icon">🎓</span> Выпускники</a></li>
+        <li><a href="/reports/index.html"><span class="icon">📊</span> Отчёты</a></li>
+        <li class="nav-label" style="margin-top:12px;">Система</li>
+        <li><a href="/profile/index.html"><span class="icon">⚙️</span> Профиль</a></li>
+    </ul>
+</aside>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+    <button class="btn btn-secondary btn-sm" id="menuToggle" style="margin-bottom:16px;display:none;">☰ Меню</button>
+
+    <div class="page-container">
+
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">🎓 Архив студентов <small>выпущенные группы</small></h1>
+            </div>
+            <div class="header-actions">
+                <a href="/students/index.html" class="btn btn-secondary">← Назад к группам</a>
+                <a href="/graduates/expelled.html" class="btn btn-danger">❌ Отчисленные</a>
+                <a href="/graduates/academic.html" class="btn btn-info">📚 Академ. отпуск</a>
+                <a href="/graduates/distribution.html" class="btn btn-distribution-highlight">📊 Распределение</a>
+                <button class="btn btn-export-pdf" id="exportPDFBtn">📄 PDF</button>
+                <button class="btn btn-export-doc" id="exportDOCBtn">📝 DOC</button>
+            </div>
+        </div>
+
+        <!-- СТАТИСТИКА -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-box" data-filter="graduated">
+                <div class="number" id="graduatedCount">0</div>
+                <div class="label">🎓 Выпускники</div>
+            </div>
+            <div class="stat-box" style="border-color: var(--primary-light);">
+                <div class="number" id="groupsCount" style="color: var(--primary-light);">0</div>
+                <div class="label">📁 Групп выпущено</div>
+            </div>
+        </div>
+
+        <!-- ФИЛЬТРЫ -->
+        <div class="filters-bar">
+            <select id="typeFilter">
+                <option value="all">Все типы</option>
+                <option value="sso">🎓 ССО</option>
+                <option value="pto">🔧 ПТО</option>
+            </select>
+            <select id="yearFilter">
+                <option value="all">Все годы</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="🔍 Поиск по названию группы...">
+            <button class="btn btn-secondary" id="clearFiltersBtn">Сбросить</button>
+        </div>
+
+        <div id="groupsContainer">
+            <div class="empty-state"><span class="icon">⏳</span><h3>Загрузка...</h3></div>
+        </div>
+
+    </div>
+</main>
+
+<script>
+// ============================================================
+// ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩИЙ supabaseClient ИЗ СЕССИИ
+// ============================================================
+
+const sb = window.Session ? window.Session.supabase() : null;
+
+if (!sb) {
+    console.warn('⚠️ Supabase клиент не доступен, создаём локально');
+    if (typeof window.supabaseClient === 'undefined') {
+        window.supabaseClient = window.supabase.createClient(
+            'https://selbolepupendprhixas.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlbGJvbGVwdXBlbmRwcmhpeGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NjQzODgsImV4cCI6MjA5ODE0MDM4OH0.UpWEr6hEs9ytnDxnaQ7Uf3d_xDQLHO-eejkIw53o7EE'
+        );
+    }
+    window.supabase = window.supabaseClient;
+} else {
+    window.supabase = sb;
+}
+
+console.log('✅ Supabase готов к использованию');
+
+// ============================================================
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+// ============================================================
+
+let currentUser = null;
+let hasEditRights = false;
+let allGroupsData = [];
+
+// ============================================================
+// TOAST УВЕДОМЛЕНИЯ
+// ============================================================
+
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-close" onclick="this.parentElement.remove()">×</span>
+        ${message}
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+    }, 5000);
+}
+
+// ============================================================
+// ПОЛЬЗОВАТЕЛЬ (ИСПОЛЬЗУЕМ СЕССИЮ)
+// ============================================================
+
+function loadUser() {
+    const user = window.Session ? window.Session.getUser() : null;
+    
+    if (!user) {
+        const savedUser = localStorage.getItem('currentUser');
+        if (!savedUser) { window.location.href = '/index.html'; return; }
+        try {
+            currentUser = JSON.parse(savedUser);
+        } catch (e) {
+            localStorage.removeItem('currentUser');
+            window.location.href = '/index.html';
+            return;
+        }
+    } else {
+        currentUser = user;
+    }
+    
+    document.getElementById('userNameDisplay').textContent = currentUser.name || currentUser.full_name || currentUser.login;
+    const roleMap = { 'super_admin': 'Супер-Админ', 'admin': 'Администратор', 'teacher': 'Преподаватель', 'viewer': 'Наблюдатель' };
+    document.getElementById('userRoleDisplay').textContent = roleMap[currentUser.role] || currentUser.role;
+
+    hasEditRights = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+}
+
+document.getElementById('logoutBtn').onclick = () => {
+    if (window.Session) { window.Session.logout(); } 
+    else { localStorage.removeItem('currentUser'); window.location.href = '/index.html'; }
+};
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function getTypeLabel(type) {
+    return type === 'sso' ? 'ССО' : 'ПТО';
+}
+
+function getTypeBadge(type) {
+    return type === 'sso' ? 'badge-sso' : 'badge-pto';
+}
+
+function getStatusLabel(status) {
+    if (status === 'graduated') return 'Выпускник';
+    if (status === 'expelled') return 'Отчислен';
+    if (status === 'academic') return 'Академ. отпуск';
+    return status || '—';
+}
+
+// ============================================================
+// ЗАГРУЗКА ГРУПП
+// ============================================================
+
+async function loadGroups() {
+    const container = document.getElementById('groupsContainer');
+    const typeFilter = document.getElementById('typeFilter').value;
+    const yearFilter = document.getElementById('yearFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    try {
+        // Получаем все группы (архивные)
+        const { data: groups, error: groupsError } = await window.supabase
+            .from('groups')
+            .select('*')
+            .eq('is_archived', true)
+            .order('name', { ascending: true });
+
+        if (groupsError) throw groupsError;
+
+        // Получаем выпускников
+        const { data: graduates, error: gradError } = await window.supabase
+            .from('graduates')
+            .select('*');
+
+        if (gradError) throw gradError;
+
+        // Получаем отчисленных
+        const { data: expelled, error: expelledError } = await window.supabase
+            .from('expelled_students')
+            .select('*');
+
+        if (expelledError) throw expelledError;
+
+        // Получаем студентов в академ. отпуске
+        const { data: academic, error: academicError } = await window.supabase
+            .from('academic_leave_students')
+            .select('*');
+
+        if (academicError) throw academicError;
+
+        const studentsByGroup = {};
+
+        if (graduates) {
+            graduates.forEach(g => {
+                const groupName = g.group_name || 'Без группы';
+                if (!studentsByGroup[groupName]) studentsByGroup[groupName] = [];
+                studentsByGroup[groupName].push({
+                    ...g,
+                    status: 'graduated'
+                });
+            });
+        }
+
+        if (expelled) {
+            expelled.forEach(g => {
+                const groupName = g.group_name || 'Без группы';
+                if (!studentsByGroup[groupName]) studentsByGroup[groupName] = [];
+                studentsByGroup[groupName].push({
+                    ...g,
+                    status: 'expelled'
+                });
+            });
+        }
+
+        if (academic) {
+            academic.forEach(g => {
+                const groupName = g.group_name || 'Без группы';
+                if (!studentsByGroup[groupName]) studentsByGroup[groupName] = [];
+                studentsByGroup[groupName].push({
+                    ...g,
+                    status: 'academic'
+                });
+            });
+        }
+
+        // Фильтруем группы, у которых есть студенты
+        let groupsWithStudents = groups
+            .filter(group => {
+                return studentsByGroup[group.name] && studentsByGroup[group.name].length > 0;
+            })
+            .map(group => {
+                const studentsList = studentsByGroup[group.name] || [];
+                // Определяем год выпуска (по дате окончания или начала)
+                const year = group.date_end ? new Date(group.date_end).getFullYear() : 
+                            (group.date_start ? new Date(group.date_start).getFullYear() : '—');
+                
+                let graduated = 0;
+                let expelledCount = 0;
+                let academicCount = 0;
+                
+                studentsList.forEach(s => {
+                    if (s.status === 'graduated') graduated++;
+                    else if (s.status === 'expelled') expelledCount++;
+                    else if (s.status === 'academic') academicCount++;
+                });
+                
+                return {
+                    ...group,
+                    year: String(year),
+                    students: studentsList,
+                    studentCount: studentsList.length,
+                    graduated: graduated,
+                    expelled: expelledCount,
+                    academic: academicCount
+                };
+            });
+
+        allGroupsData = groupsWithStudents;
+
+        // Применяем фильтры
+        let filtered = groupsWithStudents;
+
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(g => g.type === typeFilter);
+        }
+
+        if (yearFilter !== 'all') {
+            filtered = filtered.filter(g => g.year === yearFilter);
+        }
+
+        if (search) {
+            filtered = filtered.filter(g => 
+                g.name.toLowerCase().includes(search) ||
+                (g.specialty && g.specialty.some(s => s.toLowerCase().includes(search)))
+            );
+        }
+
+        updateStats(groupsWithStudents);
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="icon">🔍</span>
+                    <h3>Ничего не найдено</h3>
+                    <p style="color:var(--text-muted);">Попробуйте изменить параметры фильтрации</p>
+                </div>
+            `;
+            loadYearsFilter(groupsWithStudents);
+            return;
+        }
+
+        // ===== СОРТИРОВКА: СНАЧАЛА ПТО, ПОТОМ ССО =====
+        const ptoGroups = filtered.filter(g => g.type === 'pto');
+        const ssoGroups = filtered.filter(g => g.type === 'sso');
+        
+        // Сортируем по году внутри каждого типа (сначала новые)
+        ptoGroups.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+        ssoGroups.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+
+        let html = '';
+
+        // ===== СЕКЦИЯ ПТО =====
+        if (ptoGroups.length > 0) {
+            html += renderTypeSection(ptoGroups, 'ПТО', '🔧');
+        }
+
+        // ===== СЕКЦИЯ ССО =====
+        if (ssoGroups.length > 0) {
+            html += renderTypeSection(ssoGroups, 'ССО', '🎓');
+        }
+
+        container.innerHTML = html;
+        loadYearsFilter(groupsWithStudents);
+
+    } catch (error) {
+        console.error('❌ Ошибка загрузки групп:', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="icon">❌</span>
+                <h3>Ошибка загрузки</h3>
+                <p style="color:var(--text-muted);">${error.message}</p>
+            </div>
+        `;
+        showToast('❌ Ошибка загрузки: ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// РЕНДЕРИНГ ГРУПП ПО ТИПУ (ГОРИЗОНТАЛЬНЫЕ КАРТОЧКИ)
+// ============================================================
+
+function renderTypeSection(groups, title, icon) {
+    // Группируем по году
+    const yearMap = {};
+    groups.forEach(g => {
+        const year = g.year || '—';
+        if (!yearMap[year]) yearMap[year] = [];
+        yearMap[year].push(g);
+    });
+
+    const sortedYears = Object.keys(yearMap).sort((a, b) => {
+        if (a === '—') return 1;
+        if (b === '—') return -1;
+        return parseInt(b) - parseInt(a);
+    });
+
+    let html = `
+        <div class="type-section">
+            <div class="type-header">
+                <span class="icon">${icon}</span>
+                <h2>${title}</h2>
+                <span class="count">${groups.length} групп</span>
+            </div>
+    `;
+
+    sortedYears.forEach(year => {
+        const yearGroups = yearMap[year];
+        yearGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+        
+        // ВСЕ ГРУППЫ ИЗНАЧАЛЬНО СКРЫТЫ
+        const isDefaultOpen = false;
+
+        html += `
+            <div class="year-block">
+                <div class="year-header" onclick="toggleYear(this)">
+                    <span class="year-label">📅 ${year} год</span>
+                    <span class="year-count">(${yearGroups.length} групп)</span>
+                    <span class="arrow ${isDefaultOpen ? 'open' : ''}">▶</span>
+                </div>
+                <div class="year-groups ${isDefaultOpen ? '' : 'hidden'}">
+        `;
+
+        yearGroups.forEach(g => {
+            const typeLabel = getTypeLabel(g.type);
+            const typeBadge = getTypeBadge(g.type);
+            const specialty = g.specialty ? (Array.isArray(g.specialty) ? g.specialty : [g.specialty]) : [];
+            const period = g.date_start && g.date_end ? `${formatDate(g.date_start)} — ${formatDate(g.date_end)}` : '';
+
+            const statusCounts = {
+                graduated: g.graduated || 0,
+                expelled: g.expelled || 0,
+                academic: g.academic || 0
+            };
+
+            let statusBadges = '';
+            if (statusCounts.graduated > 0) {
+                statusBadges += `<span style="color:var(--success-dark);font-weight:500;">🎓 ${statusCounts.graduated}</span> `;
+            }
+            if (statusCounts.expelled > 0) {
+                statusBadges += `<span style="color:var(--danger);font-weight:500;">❌ ${statusCounts.expelled}</span> `;
+            }
+            if (statusCounts.academic > 0) {
+                statusBadges += `<span style="color:var(--primary-light);font-weight:500;">📚 ${statusCounts.academic}</span> `;
+            }
+
+            // Специальности тегами
+            let specialtiesHtml = '';
+            if (specialty.length > 0 && specialty[0] !== '—') {
+                specialtiesHtml = `
+                    <div class="group-specialties">
+                        ${specialty.map(s => `<span class="specialty-tag">${s}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            // Квалификация (отображается в футере карточки)
+            const qualification = g.qualification ? (Array.isArray(g.qualification) ? g.qualification.join(', ') : g.qualification) : null;
+
+            html += `
+                <div class="group-card">
+                    <a href="/graduates/group.html?id=${g.id}" class="group-name">${g.name}</a>
+                    <div class="group-meta">
+                        <span class="badge-type ${typeBadge}">${typeLabel}</span>
+                        ${period ? ` • ${period}` : ''}
+                    </div>
+                    ${specialtiesHtml}
+                    <div class="group-students">👨‍🎓 ${g.studentCount} студентов (${statusBadges})</div>
+                    <div class="group-footer">
+                        ${qualification ? `<span class="qualification-text">${qualification}</span>` : '<span class="qualification-text" style="color:var(--text-muted);">📦 В архиве</span>'}
+                        <div class="group-actions">
+                            <a href="/graduates/group.html?id=${g.id}" class="btn btn-info btn-xs">👁️ Просмотр</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    return html;
+}
+
+// ============================================================
+// СТАТИСТИКА
+// ============================================================
+
+function updateStats(groups) {
+    let graduated = 0;
+
+    groups.forEach(g => {
+        graduated += g.graduated || 0;
+    });
+
+    document.getElementById('graduatedCount').textContent = graduated;
+    document.getElementById('groupsCount').textContent = groups.length;
+}
+
+// ============================================================
+// ЗАГРУЗКА ГОДОВ В ФИЛЬТР
+// ============================================================
+
+function loadYearsFilter(groups) {
+    const select = document.getElementById('yearFilter');
+    const years = new Set(groups.map(g => g.year).filter(y => y !== '—'));
+    const sortedYears = Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+
+    const currentValue = select.value;
+    select.innerHTML = '<option value="all">Все годы</option>';
+    sortedYears.forEach(year => {
+        select.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+    select.value = currentValue;
+}
+
+// ============================================================
+// СВОРАЧИВАНИЕ/РАЗВОРАЧИВАНИЕ
+// ============================================================
+
+function toggleYear(header) {
+    const content = header.nextElementSibling;
+    const arrow = header.querySelector('.arrow');
+    if (content) {
+        content.classList.toggle('hidden');
+        if (arrow) arrow.classList.toggle('open');
+    }
+}
+
+// ============================================================
+// ЭКСПОРТ В PDF
+// ============================================================
+
+document.getElementById('exportPDFBtn').onclick = function() {
+    if (allGroupsData.length === 0) {
+        showToast('❌ Нет данных для экспорта', 'error');
+        return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('ru-RU');
+    const userName = currentUser?.name || currentUser?.login || 'Пользователь';
+    const orgName = 'Учреждение образования "Витебский государственный аграрно-технический колледж"';
+
+    let pdfHtml = `
+        <div class="pdf-content">
+            <div class="pdf-header">
+                <div class="pdf-title">Архив студентов</div>
+                <div class="pdf-subtitle">Выпущенные группы</div>
+                <div class="pdf-info">Дата: ${dateStr} | Экспортировал(а): ${userName}</div>
+            </div>
+    `;
+
+    const yearMapPdf = {};
+    allGroupsData.forEach(g => {
+        const year = g.year || '—';
+        if (!yearMapPdf[year]) yearMapPdf[year] = [];
+        yearMapPdf[year].push(g);
+    });
+
+    const sortedYearsPdf = Object.keys(yearMapPdf).sort((a, b) => {
+        if (a === '—') return 1;
+        if (b === '—') return -1;
+        return parseInt(b) - parseInt(a);
+    });
+
+    sortedYearsPdf.forEach(year => {
+        const yearGroups = yearMapPdf[year];
+        const ssoGroupsPdf = yearGroups.filter(g => g.type === 'sso').sort((a, b) => a.name.localeCompare(b.name));
+        const ptoGroupsPdf = yearGroups.filter(g => g.type === 'pto').sort((a, b) => a.name.localeCompare(b.name));
+        const allTypeGroups = [...ssoGroupsPdf, ...ptoGroupsPdf];
+
+        pdfHtml += `
+            <div class="pdf-section-title">📅 ${year} год (${yearGroups.length} групп)</div>
+        `;
+
+        allTypeGroups.forEach(g => {
+            const typeLabel = getTypeLabel(g.type);
+            const specialty = g.specialty ? (Array.isArray(g.specialty) ? g.specialty.join(', ') : g.specialty) : '—';
+            const period = g.date_start && g.date_end ? `${formatDate(g.date_start)} — ${formatDate(g.date_end)}` : '';
+
+            pdfHtml += `
+                <div style="margin-bottom:8px;padding:6px 10px;border:1px solid #ddd;border-radius:4px;">
+                    <div style="font-weight:700;font-size:13pt;">${g.name}</div>
+                    <div style="font-size:11pt;color:#555;">
+                        ${typeLabel}${period ? ' • ' + period : ''}
+                    </div>
+                    <div style="font-size:11pt;color:#555;">
+                        👨‍🎓 ${g.studentCount} студентов
+                        ${g.graduated > 0 ? ` • 🎓 ${g.graduated}` : ''}
+                        ${g.expelled > 0 ? ` • ❌ ${g.expelled}` : ''}
+                        ${g.academic > 0 ? ` • 📚 ${g.academic}` : ''}
+                    </div>
+                    <div style="font-size:10pt;color:#666;">Специальность: ${specialty}</div>
+                </div>
+            `;
+        });
+    });
+
+    pdfHtml += `
+            <div class="pdf-footer">
+                Всего групп: ${allGroupsData.length} | Всего студентов: ${allGroupsData.reduce((sum, g) => sum + g.studentCount, 0)}
+                <br>
+                Дата: ${dateStr} | Экспортировал(а): ${userName}
+            </div>
+        </div>
+    `;
+
+    const content = document.createElement('div');
+    content.innerHTML = pdfHtml;
+    content.style.cssText = 'padding: 20px; background: white;';
+
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Архив_студентов_${dateStr.replace(/\./g, '-')}.pdf`,
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(content).save().then(() => {
+        showToast('✅ Отчёт сохранён в PDF');
+    }).catch((error) => {
+        showToast('❌ Ошибка создания PDF: ' + error.message, 'error');
+    });
+};
+
+// ============================================================
+// ЭКСПОРТ В DOC
+// ============================================================
+
+document.getElementById('exportDOCBtn').onclick = function() {
+    if (allGroupsData.length === 0) {
+        showToast('❌ Нет данных для экспорта', 'error');
+        return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('ru-RU');
+    const userName = currentUser?.name || currentUser?.login || 'Пользователь';
+
+    let docHtml = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+              xmlns:w='urn:schemas-microsoft-com:office:word' 
+              xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+            <meta charset="utf-8">
+            <title>Архив студентов</title>
+            <!--[if gte mso 9]>
+            <xml>
+                <w:WordDocument>
+                    <w:View>Print</w:View>
+                    <w:Zoom>100</w:Zoom>
+                </w:WordDocument>
+            </xml>
+            <![endif]-->
+            <style>
+                body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; margin: 40px; }
+                .header { text-align: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #000; }
+                .header .title { font-size: 18pt; font-weight: 700; text-transform: uppercase; }
+                .header .subtitle { font-size: 14pt; font-weight: 600; margin-top: 4px; }
+                .header .info { font-size: 11pt; margin-top: 4px; color: #555; }
+                .section-title { font-size: 13pt; font-weight: 700; margin-top: 12px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #ccc; }
+                .group-block { margin-bottom: 8px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; }
+                .group-name { font-weight: 700; font-size: 13pt; }
+                .group-meta { font-size: 11pt; color: #555; }
+                .group-students { font-size: 11pt; color: #555; }
+                .group-specialty { font-size: 10pt; color: #666; }
+                .footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid #000; text-align: center; font-size: 11pt; }
+                .total { font-weight: 700; margin-top: 8px; }
+    `;
+
+    const yearMapDoc = {};
+    allGroupsData.forEach(g => {
+        const year = g.year || '—';
+        if (!yearMapDoc[year]) yearMapDoc[year] = [];
+        yearMapDoc[year].push(g);
+    });
+
+    const sortedYearsDoc = Object.keys(yearMapDoc).sort((a, b) => {
+        if (a === '—') return 1;
+        if (b === '—') return -1;
+        return parseInt(b) - parseInt(a);
+    });
+
+    let groupsHtml = '';
+    sortedYearsDoc.forEach(year => {
+        const yearGroups = yearMapDoc[year];
+        const ssoGroupsDoc = yearGroups.filter(g => g.type === 'sso').sort((a, b) => a.name.localeCompare(b.name));
+        const ptoGroupsDoc = yearGroups.filter(g => g.type === 'pto').sort((a, b) => a.name.localeCompare(b.name));
+        const allTypeGroupsDoc = [...ssoGroupsDoc, ...ptoGroupsDoc];
+
+        groupsHtml += `<div class="section-title">📅 ${year} год (${yearGroups.length} групп)</div>`;
+
+        allTypeGroupsDoc.forEach(g => {
+            const typeLabel = getTypeLabel(g.type);
+            const specialty = g.specialty ? (Array.isArray(g.specialty) ? g.specialty.join(', ') : g.specialty) : '—';
+            const period = g.date_start && g.date_end ? `${formatDate(g.date_start)} — ${formatDate(g.date_end)}` : '';
+
+            groupsHtml += `
+                <div class="group-block">
+                    <div class="group-name">${g.name}</div>
+                    <div class="group-meta">${typeLabel}${period ? ' • ' + period : ''}</div>
+                    <div class="group-students">
+                        👨‍🎓 ${g.studentCount} студентов
+                        ${g.graduated > 0 ? ` • 🎓 ${g.graduated}` : ''}
+                        ${g.expelled > 0 ? ` • ❌ ${g.expelled}` : ''}
+                        ${g.academic > 0 ? ` • 📚 ${g.academic}` : ''}
+                    </div>
+                    <div class="group-specialty">Специальность: ${specialty}</div>
+                </div>
+            `;
+        });
+    });
+
+    const totalStudents = allGroupsData.reduce((sum, g) => sum + g.studentCount, 0);
+
+    docHtml += `
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="title">Архив студентов</div>
+                <div class="subtitle">Выпущенные группы</div>
+                <div class="info">Дата: ${dateStr} | Экспортировал(а): ${userName}</div>
+            </div>
+            ${groupsHtml}
+            <div class="footer">
+                <div class="total">Всего групп: ${allGroupsData.length} | Всего студентов: ${totalStudents}</div>
+                <div style="margin-top:4px;">Дата: ${dateStr} | Экспортировал(а): ${userName}</div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob(['\uFEFF' + docHtml], {
+        type: 'application/msword;charset=utf-8'
+    });
+
+    const filename = `Архив_студентов_${dateStr.replace(/\./g, '-')}.doc`;
+    saveAs(blob, filename);
+    showToast('✅ Отчёт сохранён в DOC');
+};
+
+// ============================================================
+// ФИЛЬТРЫ
+// ============================================================
+
+document.getElementById('typeFilter').addEventListener('change', loadGroups);
+document.getElementById('yearFilter').addEventListener('change', loadGroups);
+document.getElementById('searchInput').addEventListener('input', loadGroups);
+
+document.getElementById('clearFiltersBtn').onclick = () => {
+    document.getElementById('typeFilter').value = 'all';
+    document.getElementById('yearFilter').value = 'all';
+    document.getElementById('searchInput').value = '';
+    loadGroups();
+};
+
+// ============================================================
+// МОБИЛЬНОЕ МЕНЮ
+// ============================================================
+
+document.getElementById('menuToggle').onclick = () => {
+    document.getElementById('sidebar').classList.toggle('open');
+};
+
+if (window.innerWidth <= 768) {
+    document.getElementById('menuToggle').style.display = 'inline-block';
+}
+
+window.onresize = () => {
+    if (window.innerWidth <= 768) {
+        document.getElementById('menuToggle').style.display = 'inline-block';
+    } else {
+        document.getElementById('menuToggle').style.display = 'none';
+        document.getElementById('sidebar').classList.remove('open');
+    }
+};
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+
+async function init() {
+    if (window.Session) {
+        const isValid = await window.Session.check();
+        if (!isValid) return;
+    }
+    
+    loadUser();
+    loadGroups();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+window.addEventListener('pageshow', function() {
+    loadGroups();
+});
+</script>
+
+</body>
+</html>

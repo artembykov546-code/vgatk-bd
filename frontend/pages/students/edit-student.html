@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование студента | vgatk_bd</title>
+    
+    <!-- ===== FAVICON ===== -->
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+    
+    <!-- ===== ШРИФТЫ ===== -->
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+    
+    <!-- ===== ЕДИНЫЙ ФАЙЛ ДИЗАЙНА ===== -->
+    <link rel="stylesheet" href="/css/components.css">
+    
+    <!-- ===== JQUERY ДЛЯ МАСКИ ТЕЛЕФОНА ===== -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+    
+    <!-- ===== SUPABASE ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        .page-container { max-width: 1000px; margin: 0 auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+        .page-title { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .page-title small { font-weight: 400; font-size: 14px; color: var(--text-muted); }
+
+        .form-card { background: var(--bg-card); border-radius: var(--border-radius-xl); padding: 32px; box-shadow: var(--shadow); border: 1px solid var(--border); animation: slideUp 0.4s ease; }
+        .form-section { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .form-section-title { font-size: 16px; font-weight: 600; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .form-section-title .badge { font-size: 11px; padding: 2px 10px; border-radius: 10px; background: var(--bg-main); color: var(--text-muted); font-weight: 400; }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-weight: 600; font-size: 14px; color: var(--text-secondary); margin-bottom: 6px; }
+        .form-label .required { color: var(--danger); margin-left: 2px; }
+        .form-control { width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--border-radius); font-size: 14px; transition: var(--transition); background: var(--bg-card); height: 48px; box-sizing: border-box; }
+        .form-control:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .phone-group { display: flex; gap: 8px; }
+        .phone-group select { width: 100px; padding: 10px 12px; border: 2px solid var(--border); border-radius: var(--border-radius); font-size: 14px; background: var(--bg-card); flex-shrink: 0; height: 48px; }
+        .phone-group input { flex: 1; }
+
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+
+        .form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 2px solid var(--border); }
+        .form-actions .btn { padding: 12px 32px; font-size: 15px; }
+
+        .info-box { background: var(--bg-main); padding: 12px 16px; border-radius: var(--border-radius); border-left: 4px solid var(--primary); margin-bottom: 16px; font-size: 14px; }
+
+        .status-badge { display: inline-block; padding: 2px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+        .status-active { background: var(--success-bg); color: var(--success); }
+        .status-expelled { background: var(--danger-bg); color: var(--danger); }
+        .status-graduated { background: var(--info-bg); color: var(--info); }
+
+        .accounting-block {
+            background: var(--bg-main);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .accounting-block .block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .accounting-block .block-header .block-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .parent-block, .sibling-block {
+            background: var(--bg-main);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        .parent-block:hover, .sibling-block:hover {
+            border-color: var(--primary-light);
+        }
+        .block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .block-header .block-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .block-header .remove-block {
+            color: var(--danger);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+        .block-header .remove-block:hover {
+            color: var(--danger-dark);
+        }
+        .btn-add-block { margin-top: 8px; }
+
+        /* ===== ЦЕЛЕВОЕ ОБУЧЕНИЕ ===== */
+        .target-training-block { 
+            display: none; 
+            background: #F0FDF4; 
+            padding: 16px; 
+            border-radius: var(--border-radius); 
+            border: 1px solid #86EFAC; 
+            margin-top: 12px; 
+        }
+        .target-training-block.show { display: block; }
+
+        /* ===== ОБЩЕЖИТИЕ ===== */
+        .dormitory-block { 
+            display: none; 
+            background: #F0F9FF; 
+            padding: 16px; 
+            border-radius: var(--border-radius); 
+            border: 1px solid #7DD3FC; 
+            margin-top: 12px; 
+        }
+        .dormitory-block.show { display: block; }
+
+        .grade-section { border: 1px solid var(--border); border-radius: var(--border-radius); padding: 12px 16px; background: var(--bg-main); margin-bottom: 12px; }
+        .grade-section .grade-title { font-weight: 600; font-size: 14px; color: var(--primary); margin-bottom: 8px; }
+        .grade-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .grade-row .grade-field { display: flex; flex-direction: column; }
+        .grade-row .grade-field label { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 2px; }
+        .grade-row .grade-field input { padding: 4px 8px; border: 2px solid var(--border); border-radius: var(--border-radius); font-size: 13px; height: 34px; width: 100%; transition: var(--transition); background: var(--bg-card); }
+        .grade-row .grade-field input:focus { outline: none; border-color: var(--primary-light); }
+
+        /* ===== УМНЫЕ ВЫПАДАЮЩИЕ СПИСКИ АДРЕСА ===== */
+        .smart-select-wrapper { position: relative; }
+        .smart-select-input { width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--border-radius); font-size: 14px; background: var(--bg-card); cursor: text; transition: var(--transition); height: 48px; box-sizing: border-box; }
+        .smart-select-input:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(44, 62, 143, 0.1); }
+        .smart-select-input:disabled { background: var(--bg-main); cursor: not-allowed; opacity: 0.7; }
+        .smart-select-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 2px solid var(--border); border-top: none; border-radius: 0 0 var(--border-radius) var(--border-radius); max-height: 250px; overflow-y: auto; z-index: 1000; display: none; box-shadow: var(--shadow-modal); }
+        .smart-select-dropdown.show { display: block; animation: slideUp 0.2s ease; }
+        .smart-select-option { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: var(--transition); font-size: 14px; }
+        .smart-select-option:hover { background: var(--bg-hover); color: var(--primary); }
+        .smart-select-option.selected { background: var(--bg-active); color: var(--primary); font-weight: 600; }
+        .smart-select-empty { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+        .person-search-wrapper {
+            position: relative;
+        }
+        .person-search-wrapper .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        .person-search-wrapper .suggestions.show { display: block; }
+        .person-search-wrapper .suggestions .suggestion-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .person-search-wrapper .suggestions .suggestion-item:hover { background: var(--bg-hover); }
+        .person-search-wrapper .suggestions .suggestion-item .name { font-weight: 600; }
+        .person-search-wrapper .suggestions .suggestion-item .info { font-size: 12px; color: var(--text-muted); }
+
+        /* ===== КАРТОЧКА АДРЕСА ===== */
+        .address-card {
+            background: var(--bg-main);
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: var(--transition);
+        }
+        .address-card:hover {
+            border-color: var(--primary-light);
+        }
+        .address-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .address-card .card-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--primary);
+        }
+        .address-card .remove-address {
+            color: var(--danger);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+        .address-card .remove-address:hover {
+            color: var(--danger-dark);
+        }
+        .address-card .address-type-select {
+            margin-bottom: 12px;
+        }
+        .address-card .address-type-select select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--border-radius);
+            font-size: 13px;
+            background: var(--bg-card);
+        }
+        .btn-add-address {
+            margin-top: 4px;
+        }
+
+        .toast-notification {
+            position: fixed; top: 80px; right: 20px; padding: 16px 24px;
+            border-radius: var(--border-radius); color: white; font-weight: 600;
+            z-index: 9999; animation: slideUp 0.3s ease; max-width: 400px;
+            box-shadow: var(--shadow-modal);
+        }
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+        .toast-notification .toast-close { float: right; margin-left: 16px; cursor: pointer; font-size: 18px; opacity: 0.8; }
+        .toast-notification .toast-close:hover { opacity: 1; }
+
+        @media (max-width: 768px) {
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .form-card { padding: 20px; }
+            .form-row { grid-template-columns: 1fr; }
+            .phone-group { flex-wrap: wrap; }
+            .phone-group select { width: 100%; }
+            .form-actions { flex-direction: column; }
+            .form-actions .btn { width: 100%; justify-content: center; }
+            .checkbox-group { flex-direction: column; gap: 6px; }
+            .page-title { font-size: 20px; }
+            .toast-notification { left: 20px; right: 20px; top: 80px; }
+            .grade-row { grid-template-columns: 1fr; gap: 4px; }
+        }
+        @media (max-width: 480px) {
+            .page-title { font-size: 18px; }
+            .form-actions .btn { padding: 10px; font-size: 14px; }
+            .form-control { height: 44px; }
+            .phone-group select { height: 44px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-logo">
+        <span class="college-name">
+            Учреждение образования<br>
+            <span class="sub">"Витебский государственный аграрно-технический колледж"</span>
+        </span>
+    </div>
+    <div class="header-user">
+        <div class="header-user-info">
+            <div class="header-user-name" id="userNameDisplay">Загрузка...</div>
+            <div class="header-user-role" id="userRoleDisplay">Загрузка...</div>
+        </div>
+        <button class="btn-logout" id="logoutBtn"> Выйти</button>
+    </div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+    <ul class="sidebar-nav">
+        <li class="nav-label">Главное</li>
+        <li><a href="/dashboard.html"><span class="icon">🏠</span> Главная</a></li>
+        <li><a href="/employees/index.html"><span class="icon">👨‍🏫</span> Сотрудники</a></li>
+        <li><a href="/students/index.html" class="active"><span class="icon">👨‍🎓</span> Учащиеся</a></li>
+        <li><a href="/graduates/index.html"><span class="icon">🎓</span> Выпускники</a></li>
+        <li><a href="/reports/index.html"><span class="icon">📊</span> Отчёты</a></li>
+        <li class="nav-label" style="margin-top:12px;">Система</li>
+        <li><a href="/profile/index.html"><span class="icon">⚙️</span> Профиль</a></li>
+    </ul>
+</aside>
+
+<main class="main-content">
+    <button class="btn btn-secondary btn-sm" id="menuToggle" style="margin-bottom:16px;display:none;">☰ Меню</button>
+
+    <div class="page-container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">✏️ Редактирование студента <small id="studentNameDisplay">загрузка...</small></h1>
+            </div>
+            <a href="javascript:history.back()" class="btn btn-secondary">← Назад</a>
+        </div>
+
+        <div class="form-card">
+            <form id="editStudentForm" onsubmit="return false;">
+
+                <div class="info-box" id="statusInfo"></div>
+
+                <!-- ===== ОСНОВНЫЕ ДАННЫЕ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">📋 Основные данные</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">ФИО <span class="required">*</span></label>
+                            <input type="text" class="form-control" id="fullName" placeholder="Введите полное ФИО" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Пол <span class="required">*</span></label>
+                            <select class="form-control" id="gender">
+                                <option value="">Выберите пол</option>
+                                <option value="Мужской">👨 Мужской</option>
+                                <option value="Женский">👩 Женский</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Группа <span class="required">*</span></label>
+                            <select class="form-control" id="groupId" required>
+                                <option value="">— Загрузка групп —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Дата рождения</label>
+                            <input type="date" class="form-control" id="birthDate">
+                            <div class="form-hint">Возраст: <span class="age-display" id="ageDisplay">—</span></div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Гражданство</label>
+                            <select class="form-control" id="citizenship">
+                                <option value="">Не указано</option>
+                                <option value="РБ">🇧🇾 РБ</option>
+                                <option value="РФ">🇺 РФ</option>
+                                <option value="Другое">Другое</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Телефон</label>
+                            <div class="phone-group">
+                                <select id="phoneCode">
+                                    <option value="+375">+375</option>
+                                    <option value="+7">+7</option>
+                                </select>
+                                <input type="text" class="form-control" id="phone" placeholder="(XX) XXX-XX-XX">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== ОБРАЗОВАНИЕ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">🎓 Образование</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Школа</label>
+                            <input type="text" class="form-control" id="school" placeholder="Название школы">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Год окончания</label>
+                            <input type="number" class="form-control" id="schoolYear" placeholder="2023" min="2000" max="2030">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Класс окончания</label>
+                            <select class="form-control" id="schoolClass">
+                                <option value="">Не указано</option>
+                                <option value="9">9 класс</option>
+                                <option value="11">11 класс</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Средний балл аттестата</label>
+                            <div class="grade-input-wrapper">
+                                <input type="text" class="form-control" id="avgGrade" placeholder="0-10 (например: 6,1)" maxlength="4">
+                                <span class="grade-suffix"></span>
+                            </div>
+                            <div class="form-hint">Введите число от 0 до 10. Например: 6,1 или 6.1 → автоматически преобразуется в 6,1</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== КАРТОЧКИ АДРЕСОВ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">📍 Адреса</div>
+                    
+                    <div id="addressesContainer">
+                        <!-- Карточки адресов будут добавляться сюда -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-primary btn-sm btn-add-address" onclick="addAddressCard()">
+                        ➕ Добавить адрес
+                    </button>
+                    <div class="form-hint" style="margin-top:8px;">Добавьте адреса для студента (регистрации, проживания и т.д.)</div>
+                </div>
+
+                <!-- ===== УЧЁТ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">📊 Учёт</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Виды учёта</label>
+                        <div class="checkbox-group" id="accountingTypes">
+                            <label><input type="checkbox" value="КДН" onchange="updateAccountingBlocks()"> КДН</label>
+                            <label><input type="checkbox" value="ИДН" onchange="updateAccountingBlocks()"> ИДН</label>
+                            <label><input type="checkbox" value="СОП" onchange="updateAccountingBlocks()"> СОП</label>
+                            <label><input type="checkbox" value="сирота" onchange="updateAccountingBlocks()"> Сирота</label>
+                            <label><input type="checkbox" value="опека" onchange="updateAccountingBlocks()"> Опека</label>
+                        </div>
+                    </div>
+
+                    <div id="accountingBlocksContainer"></div>
+                </div>
+
+                <!-- ===== ЦЕЛЕВОЕ ОБУЧЕНИЕ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">🎯 Целевое обучение</div>
+
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" id="targetTraining" onchange="toggleTargetTraining()">
+                            <span style="font-weight:600;">Целевое обучение</span>
+                        </label>
+                    </div>
+
+                    <div class="target-training-block" id="targetTrainingBlock">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Заказчик</label>
+                                <input type="text" class="form-control" id="targetCustomer" placeholder="Название организации">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">№ договора</label>
+                                <input type="text" class="form-control" id="targetContract" placeholder="№ договора">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Срок отработки (лет)</label>
+                            <input type="number" class="form-control" id="targetYears" placeholder="5" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== ОБЩЕЖИТИЕ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">🏠 Общежитие</div>
+
+                    <div class="form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="checkbox" id="livesInDorm" onchange="toggleDormitory()">
+                            <span style="font-weight:600;">Проживает в общежитии</span>
+                        </label>
+                    </div>
+
+                    <div class="dormitory-block" id="dormitoryBlock">
+                        <div class="form-group">
+                            <label class="form-label">Блок</label>
+                            <input type="text" class="form-control" id="dormBlock" placeholder="Введите номер блока">
+                            <div class="form-hint">Например: 1, 2, 3 ...</div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Дата заселения</label>
+                                <input type="date" class="form-control" id="dormCheckIn">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Дата выселения</label>
+                                <input type="date" class="form-control" id="dormCheckOut">
+                                <div class="form-hint">Оставьте пустым, если проживает в текущий момент</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== СРЕДНИЙ БАЛЛ ПО КУРСАМ ===== -->
+                <div class="form-section" id="gradesSection">
+                    <div class="form-section-title">📊 Средний балл по курсам</div>
+                    <div id="gradesContainer">
+                        <!-- Динамически заполняется JS -->
+                    </div>
+                </div>
+
+                <!-- ===== РОДИТЕЛИ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">👨👩‍👦 Родители <span class="badge">необязательно</span></div>
+                    <div id="parentsContainer"></div>
+                    <button type="button" class="btn btn-primary btn-sm btn-add-block" onclick="addParent()">➕ Добавить родителя</button>
+                </div>
+
+                <!-- ===== БРАТЬЯ/СЁСТРЫ ===== -->
+                <div class="form-section">
+                    <div class="form-section-title">👨‍👧‍ Братья и сёстры <span class="badge">необязательно</span></div>
+                    <div id="siblingsContainer"></div>
+                    <button type="button" class="btn btn-primary btn-sm btn-add-block" onclick="addSibling()">➕ Добавить брата/сестру</button>
+                </div>
+
+                <!-- ===== КНОПКИ ===== -->
+                <div class="form-actions">
+                    <a href="javascript:history.back()" class="btn btn-secondary">Отмена</a>
+                    <button type="button" class="btn btn-success" id="saveStudentBtn">💾 Сохранить изменения</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</main>
+
+<script src="/js/components.js"></script>
+
+<script>
+// ============================================================
+// ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩИЙ supabaseClient
+// ============================================================
+if (typeof window.supabaseClient === 'undefined') {
+    window.supabaseClient = window.supabase.createClient(
+        'https://selbolepupendprhixas.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlbGJvbGVwdXBlbmRwcmhpeGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NjQzODgsImV4cCI6MjA5ODE0MDM4OH0.UpWEr6hEs9ytnDxnaQ7Uf3d_xDQLHO-eejkIw53o7EE'
+    );
+}
+const sbClient = window.supabaseClient;
+console.log('✅ Supabase готов к использованию');
+
+// ============================================================
+// ПЕРЕМЕННЫЕ
+// ============================================================
+const urlParams = new URLSearchParams(window.location.search);
+const studentId = urlParams.get('id');
+
+let currentUser = null;
+let hasEditRights = false;
+let parentCounter = 0;
+let siblingCounter = 0;
+let accountingCounter = 0;
+let addressCounter = 0;
+
+// ============================================================
+// ПОЛНАЯ БАЗА ДАННЫХ НАСЕЛЁННЫХ ПУНКТОВ РБ (ИСПРАВЛЕННАЯ)
+// ============================================================
+const belarusData = {
+    "Брестская": { districts: {} },
+    "Витебская": { districts: {} },
+    "Гомельская": { districts: {} },
+    "Гродненская": { districts: {} },
+    "Минская": { districts: {} },
+    "Могилёвская": { districts: {} }
+};
+
+// ============================================================
+// ПОЛЬЗОВАТЕЛЬ
+// ============================================================
+function loadUser() {
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) { window.location.href = '/index.html'; return; }
+    try {
+        currentUser = JSON.parse(savedUser);
+        document.getElementById('userNameDisplay').textContent = currentUser.name || currentUser.login;
+        const roleMap = { 'super_admin': 'Супер-Админ', 'admin': 'Администратор', 'teacher': 'Преподаватель', 'viewer': 'Наблюдатель' };
+        document.getElementById('userRoleDisplay').textContent = roleMap[currentUser.role] || currentUser.role;
+        hasEditRights = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+    } catch (e) {
+        localStorage.removeItem('currentUser');
+        window.location.href = '/index.html';
+    }
+}
+document.getElementById('logoutBtn').onclick = () => { localStorage.removeItem('currentUser'); window.location.href = '/index.html'; };
+
+// ============================================================
+// TOAST УВЕДОМЛЕНИЯ
+// ============================================================
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <span class="toast-close" onclick="this.parentElement.remove()">×</span>
+        ${message}
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+    }, 5000);
+}
+
+// ============================================================
+// ФУНКЦИИ
+// ============================================================
+function getStatusBadge(status) {
+    if (status === 'active') return 'status-active';
+    if (status === 'expelled') return 'status-expelled';
+    return 'status-graduated';
+}
+function getStatusText(status) {
+    if (status === 'active') return '✅ Активен';
+    if (status === 'expelled') return '❌ Отчислен';
+    return '🎓 Выпущен';
+}
+
+function formatGradeForInput(value) {
+    if (value === null || value === undefined || value === '') return '';
+    const num = parseFloat(value);
+    if (isNaN(num)) return '';
+    return num.toFixed(1).replace('.', ',');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function calculateAge(birthDate) {
+    if (!birthDate) return '—';
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+}
+
+// ============================================================
+// ОБЩЕЖИТИЕ
+// ============================================================
+function toggleDormitory() {
+    const checked = document.getElementById('livesInDorm').checked;
+    const block = document.getElementById('dormitoryBlock');
+    
+    if (checked) {
+        block.classList.add('show');
+    } else {
+        block.classList.remove('show');
+        // Очищаем поля при снятии галочки
+        document.getElementById('dormBlock').value = '';
+        document.getElementById('dormCheckIn').value = '';
+        document.getElementById('dormCheckOut').value = '';
+    }
+}
+
+// ============================================================
+// МАСКА ТЕЛЕФОНА
+// ============================================================
+document.getElementById('phoneCode').addEventListener('change', function() {
+    const input = document.getElementById('phone');
+    const code = this.value;
+    if (code === '+375') {
+        $(input).mask('(99) 999-99-99', { placeholder: '(XX) XXX-XX-XX' });
+    } else if (code === '+7') {
+        $(input).mask('(999) 999-99-99', { placeholder: '(XXX) XXX-XX-XX' });
+    } else {
+        $(input).mask('', { placeholder: '' });
+    }
+});
+setTimeout(() => { document.getElementById('phoneCode').dispatchEvent(new Event('change')); }, 100);
+
+// ============================================================
+// РАСЧЁТ ВОЗРАСТА
+// ============================================================
+document.getElementById('birthDate').addEventListener('change', function() {
+    const date = this.value;
+    const display = document.getElementById('ageDisplay');
+    if (!date) { display.textContent = '—'; return; }
+    const birth = new Date(date);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    display.textContent = `${age} лет`;
+});
+
+// ============================================================
+// МАСКА ДЛЯ СРЕДНЕГО БАЛЛА АТТЕСТАТА
+// ============================================================
+function setupGradeMask() {
+    const input = document.getElementById('avgGrade');
+    function formatGrade(value) {
+        let cleaned = value.replace(/[^0-9,.]/g, '');
+        cleaned = cleaned.replace(/\./g, ',');
+        const parts = cleaned.split(',');
+        if (parts.length > 2) cleaned = parts[0] + ',' + parts.slice(1).join('');
+        if (cleaned.length > 4) cleaned = cleaned.slice(0, 4);
+        if (!cleaned.includes(',') && cleaned.length > 1) {
+            const num = parseInt(cleaned);
+            if (!isNaN(num) && num >= 0 && num <= 99) {
+                const str = num.toString();
+                if (str.length >= 2) cleaned = str.slice(0, -1) + ',' + str.slice(-1);
+            }
+        }
+        if (cleaned.length > 0) {
+            const firstChar = cleaned.charAt(0);
+            if (firstChar > '1' && cleaned.length > 1 && cleaned.indexOf(',') === -1) cleaned = '1' + cleaned.slice(1);
+        }
+        const numericValue = parseFloat(cleaned.replace(',', '.'));
+        if (!isNaN(numericValue) && numericValue > 10) cleaned = '10,0';
+        return cleaned;
+    }
+    input.addEventListener('input', function() {
+        const cursorPos = this.selectionStart;
+        const oldValue = this.value;
+        const newValue = formatGrade(oldValue);
+        if (newValue !== oldValue) { this.value = newValue; this.setSelectionRange(Math.min(cursorPos, newValue.length), Math.min(cursorPos, newValue.length)); }
+        const suffix = this.parentElement.querySelector('.grade-suffix');
+        if (this.value) {
+            const num = parseFloat(this.value.replace(',', '.'));
+            if (!isNaN(num)) { suffix.textContent = '/ 10'; suffix.style.color = 'var(--text-muted)'; } else suffix.textContent = '';
+        } else suffix.textContent = '';
+    });
+    input.addEventListener('paste', function(e) { setTimeout(() => { this.value = formatGrade(this.value); }, 10); });
+    input.addEventListener('blur', function() {
+        if (this.value) {
+            if (this.value.endsWith(',')) this.value = this.value.slice(0, -1);
+            const num = parseFloat(this.value.replace(',', '.'));
+            if (!isNaN(num) && !this.value.includes(',')) this.value = num.toFixed(1).replace('.', ',');
+            if (num === 0 && this.value === '0') this.value = '0,0';
+        }
+    });
+}
+
+// ============================================================
+// УЧЁТ (ДИНАМИЧЕСКИЕ БЛОКИ)
+// ============================================================
+function updateAccountingBlocks() {
+    const checked = document.querySelectorAll('#accountingTypes input[type="checkbox"]:checked');
+    const container = document.getElementById('accountingBlocksContainer');
+    
+    const existingData = {};
+    document.querySelectorAll('.accounting-block').forEach(block => {
+        const type = block.dataset.type;
+        const start = block.querySelector('.accounting-start')?.value || '';
+        const end = block.querySelector('.accounting-end')?.value || '';
+        if (type) existingData[type] = { start, end };
+    });
+    
+    container.innerHTML = '';
+    accountingCounter = 0;
+    checked.forEach(cb => {
+        const type = cb.value;
+        accountingCounter++;
+        const data = existingData[type] || { start: '', end: '' };
+        const html = `
+            <div class="accounting-block" data-type="${type}">
+                <div class="block-header"><span class="block-title">📌 ${type}</span></div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Дата постановки на учёт</label><input type="date" class="form-control accounting-start" value="${data.start}"></div>
+                    <div class="form-group"><label class="form-label">Дата снятия с учёта</label><input type="date" class="form-control accounting-end" value="${data.end}"><div class="form-hint">Оставьте пустым, если учёт активен</div></div>
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+}
+
+// ============================================================
+// ЦЕЛЕВОЕ ОБУЧЕНИЕ
+// ============================================================
+function toggleTargetTraining() {
+    const checked = document.getElementById('targetTraining').checked;
+    document.getElementById('targetTrainingBlock').classList.toggle('show', checked);
+}
+
+// ============================================================
+// ГЕНЕРАЦИЯ ПОЛЕЙ ДЛЯ СРЕДНЕГО БАЛЛА
+// ============================================================
+function renderGradeFields(student, groupType) {
+    const container = document.getElementById('gradesContainer');
+    const maxCourse = groupType === 'sso' ? 4 : 3;
+    
+    let html = '';
+    
+    for (let course = 1; course <= maxCourse; course++) {
+        const sem1 = student ? student[`grade_${course}_sem1`] : null;
+        const sem2 = student ? student[`grade_${course}_sem2`] : null;
+        const year = student ? student[`grade_${course}_year`] : null;
+        
+        html += `
+            <div class="grade-section">
+                <div class="grade-title">📘 ${course} курс</div>
+                <div class="grade-row">
+                    <div class="grade-field">
+                        <label>1-ое полугодие</label>
+                        <input type="text" class="grade-input" data-course="${course}" data-period="sem1" value="${formatGradeForInput(sem1)}" placeholder="0-10">
+                    </div>
+                    <div class="grade-field">
+                        <label>2-ое полугодие</label>
+                        <input type="text" class="grade-input" data-course="${course}" data-period="sem2" value="${formatGradeForInput(sem2)}" placeholder="0-10">
+                    </div>
+                    <div class="grade-field">
+                        <label>За год</label>
+                        <input type="text" class="grade-input" data-course="${course}" data-period="year" value="${formatGradeForInput(year)}" placeholder="0-10">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    document.querySelectorAll('.grade-input').forEach(input => {
+        input.addEventListener('input', function() {
+            let val = this.value.replace(/[^0-9,.]/g, '');
+            val = val.replace(/\./g, ',');
+            if (!val.includes(',') && val.length > 1) {
+                const num = parseInt(val);
+                if (!isNaN(num) && num >= 0 && num <= 99) {
+                    const str = num.toString();
+                    if (str.length >= 2) {
+                        val = str.slice(0, -1) + ',' + str.slice(-1);
+                    }
+                }
+            }
+            const numericValue = parseFloat(val.replace(',', '.'));
+            if (!isNaN(numericValue) && numericValue > 10) {
+                val = '10,0';
+            }
+            this.value = val;
+        });
+        
+        input.addEventListener('blur', function() {
+            if (this.value) {
+                const num = parseFloat(this.value.replace(',', '.'));
+                if (!isNaN(num)) {
+                    this.value = num.toFixed(1).replace('.', ',');
+                }
+            }
+        });
+    });
+}
+
+// ============================================================
+// УМНЫЕ ВЫПАДАЮЩИЕ СПИСКИ (КЛАСС)
+// ============================================================
+class SmartSelect {
+    constructor(inputId, dropdownId, options, onSelect) {
+        this.input = document.getElementById(inputId);
+        this.dropdown = document.getElementById(dropdownId);
+        this.options = options || [];
+        this.onSelect = onSelect;
+        this.selectedValue = '';
+        
+        if (!this.input || !this.dropdown) return;
+        
+        this.input.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.input.disabled) {
+                if (!this.input.value.trim()) {
+                    this.renderOptions(this.options);
+                    this.dropdown.classList.add('show');
+                } else {
+                    this.filter();
+                }
+            }
+        });
+        
+        this.input.addEventListener('input', () => {
+            if (this.input.disabled) return;
+            this.filter();
+            if (this.input.value.trim()) {
+                this.dropdown.classList.add('show');
+            }
+        });
+        
+        this.input.addEventListener('focus', () => {
+            if (this.input.disabled) return;
+            if (!this.input.value.trim()) {
+                this.renderOptions(this.options);
+                this.dropdown.classList.add('show');
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!this.input?.closest('.smart-select-wrapper')?.contains(e.target)) {
+                this.close();
+            }
+        });
+        
+        this.input.addEventListener('selectOption', (e) => {
+            this.select(e.detail);
+        });
+    }
+    
+    open() {
+        if (this.input.disabled) return;
+        this.renderOptions(this.options);
+        this.dropdown.classList.add('show');
+    }
+    
+    close() {
+        this.dropdown.classList.remove('show');
+    }
+    
+    filter() {
+        const query = this.input.value.toLowerCase().trim();
+        let filtered = this.options;
+        if (query) {
+            filtered = this.options.filter(opt => opt.toLowerCase().includes(query));
+        }
+        this.renderOptions(filtered);
+        if (filtered.length > 0) {
+            this.dropdown.classList.add('show');
+        } else {
+            this.dropdown.classList.remove('show');
+        }
+    }
+    
+    renderOptions(items) {
+        if (!items || items.length === 0) {
+            this.dropdown.innerHTML = '<div class="smart-select-empty">Ничего не найдено</div>';
+            return;
+        }
+        const sorted = [...items].sort((a, b) => a.localeCompare(b, 'ru'));
+        this.dropdown.innerHTML = sorted.map(item => `
+            <div class="smart-select-option ${item === this.selectedValue ? 'selected' : ''}" 
+                 onclick="window.selectSmartValue('${this.input.id}', '${item.replace(/'/g, "\\'")}')">
+                ${item}
+            </div>
+        `).join('');
+    }
+    
+    setOptions(options) {
+        this.options = options || [];
+        this.renderOptions(options);
+    }
+    
+    select(value) {
+        this.selectedValue = value;
+        this.input.value = value;
+        this.close();
+        if (this.onSelect) this.onSelect(value);
+    }
+}
+
+window.selectSmartValue = function(inputId, value) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.dispatchEvent(new CustomEvent('selectOption', { detail: value }));
+};
+
+// ============================================================
+// КАРТОЧКИ АДРЕСОВ
+// ============================================================
+function addAddressCard(addressData = null) {
+    addressCounter++;
+    const container = document.getElementById('addressesContainer');
+    const id = addressCounter;
+    
+    const regions = Object.keys(belarusData).sort((a, b) => a.localeCompare(b, 'ru'));
+    
+    const html = `
+        <div class="address-card" id="addressCard_${id}">
+            <div class="card-header">
+                <span class="card-title">📍 Адрес ${id}</span>
+                <span class="remove-address" onclick="removeAddressCard(${id})">×</span>
+            </div>
+            
+            <div class="address-type-select">
+                <label class="form-label">Тип адреса</label>
+                <select class="form-control" id="addressType_${id}">
+                    <option value="регистрации">Адрес регистрации</option>
+                    <option value="проживания">Адрес проживания</option>
+                    <option value="другой">Другой адрес</option>
+                </select>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Область</label>
+                    <div class="smart-select-wrapper" id="regionWrapper_${id}">
+                        <input type="text" class="smart-select-input" id="addressRegion_${id}" placeholder="Введите или выберите область..." value="${addressData?.region || ''}">
+                        <div class="smart-select-dropdown" id="regionDropdown_${id}"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Район</label>
+                    <div class="smart-select-wrapper" id="districtWrapper_${id}">
+                        <input type="text" class="smart-select-input" id="addressDistrict_${id}" placeholder="Сначала выберите область..." value="${addressData?.district || ''}" ${addressData?.region ? '' : 'disabled'}>
+                        <div class="smart-select-dropdown" id="districtDropdown_${id}"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Тип населённого пункта</label>
+                    <select class="form-control" id="localityType_${id}" ${addressData?.district ? '' : 'disabled'}>
+                        <option value="">Выберите тип...</option>
+                        <option value="cities" ${addressData?.locality ? 'selected' : ''}>🏙️ Город</option>
+                        <option value="towns" ${addressData?.locality ? 'selected' : ''}>️ Городской посёлок</option>
+                        <option value="agrotowns" ${addressData?.locality ? 'selected' : ''}>🌾 Агрогородок</option>
+                        <option value="villages" ${addressData?.locality ? 'selected' : ''}>🌳 Деревня</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Населённый пункт</label>
+                    <div class="smart-select-wrapper" id="localityWrapper_${id}">
+                        <input type="text" class="smart-select-input" id="addressLocality_${id}" placeholder="Сначала выберите тип..." value="${addressData?.locality || ''}" ${addressData?.locality ? '' : 'disabled'}>
+                        <div class="smart-select-dropdown" id="localityDropdown_${id}"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Улица, дом, квартира</label>
+                <input type="text" class="form-control" id="addressStreet_${id}" value="${addressData?.street || ''}" placeholder="ул. Ленина, д. 10, кв. 5">
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', html);
+    initAddressSmartSelects(id, addressData);
+}
+
+function removeAddressCard(id) {
+    const block = document.getElementById(`addressCard_${id}`);
+    if (block) block.remove();
+}
+
+function initAddressSmartSelects(id, addressData) {
+    const regions = Object.keys(belarusData).sort((a, b) => a.localeCompare(b, 'ru'));
+    
+    const regionSelect = new SmartSelect(
+        `addressRegion_${id}`, 
+        `regionDropdown_${id}`, 
+        regions,
+        (region) => {
+            const districtInput = document.getElementById(`addressDistrict_${id}`);
+            districtInput.value = '';
+            districtInput.disabled = false;
+            districtInput.placeholder = 'Введите или выберите район...';
+            
+            const localityType = document.getElementById(`localityType_${id}`);
+            localityType.innerHTML = '<option value="">Сначала выберите район...</option>';
+            localityType.disabled = true;
+            
+            document.getElementById(`addressLocality_${id}`).value = '';
+            document.getElementById(`addressLocality_${id}`).disabled = true;
+            document.getElementById(`addressLocality_${id}`).placeholder = 'Сначала выберите тип...';
+            
+            const districts = Object.keys(belarusData[region].districts).sort((a, b) => a.localeCompare(b, 'ru'));
+            const districtSelect = window[`districtSelect_${id}`];
+            if (districtSelect) {
+                districtSelect.setOptions(districts);
+                districtSelect.selectedValue = '';
+            }
+        }
+    );
+    
+    const districtSelect = new SmartSelect(
+        `addressDistrict_${id}`,
+        `districtDropdown_${id}`,
+        [],
+        (district) => {
+            const localityType = document.getElementById(`localityType_${id}`);
+            localityType.innerHTML = `
+                <option value="">Выберите тип...</option>
+                <option value="cities">🏙️ Город</option>
+                <option value="towns">🏘️ Городской посёлок</option>
+                <option value="agrotowns">🌾 Агрогородок</option>
+                <option value="villages">🌳 Деревня</option>
+            `;
+            localityType.disabled = false;
+            
+            document.getElementById(`addressLocality_${id}`).value = '';
+            document.getElementById(`addressLocality_${id}`).disabled = true;
+            document.getElementById(`addressLocality_${id}`).placeholder = 'Сначала выберите тип...';
+        }
+    );
+    
+    document.getElementById(`localityType_${id}`).addEventListener('change', function() {
+        const region = document.getElementById(`addressRegion_${id}`).value;
+        const district = document.getElementById(`addressDistrict_${id}`).value;
+        const type = this.value;
+        
+        if (!region || !district || !type) {
+            document.getElementById(`addressLocality_${id}`).value = '';
+            document.getElementById(`addressLocality_${id}`).disabled = true;
+            return;
+        }
+        
+        const data = belarusData[region]?.districts[district];
+        if (!data) return;
+        
+        let localities = [];
+        if (type === 'cities') localities = data.cities || [];
+        else if (type === 'towns') localities = data.towns || [];
+        else if (type === 'agrotowns') localities = data.agrotowns || [];
+        else if (type === 'villages') localities = data.villages || [];
+        
+        localities.sort((a, b) => a.localeCompare(b, 'ru'));
+        
+        const localitySelect = window[`localitySelect_${id}`];
+        if (localitySelect) {
+            localitySelect.setOptions(localities);
+            localitySelect.selectedValue = '';
+        }
+        
+        document.getElementById(`addressLocality_${id}`).disabled = false;
+        document.getElementById(`addressLocality_${id}`).placeholder = 'Введите или выберите населённый пункт...';
+        document.getElementById(`addressLocality_${id}`).value = '';
+    });
+    
+    const localitySelect = new SmartSelect(
+        `addressLocality_${id}`,
+        `localityDropdown_${id}`,
+        [],
+        (locality) => {}
+    );
+    
+    window[`regionSelect_${id}`] = regionSelect;
+    window[`districtSelect_${id}`] = districtSelect;
+    window[`localitySelect_${id}`] = localitySelect;
+    
+    if (addressData) {
+        if (addressData.region) {
+            regionSelect.selectedValue = addressData.region;
+            const districts = Object.keys(belarusData[addressData.region].districts).sort((a, b) => a.localeCompare(b, 'ru'));
+            districtSelect.setOptions(districts);
+            if (addressData.district) {
+                districtSelect.selectedValue = addressData.district;
+                document.getElementById(`addressDistrict_${id}`).value = addressData.district;
+                document.getElementById(`addressDistrict_${id}`).disabled = false;
+                document.getElementById(`localityType_${id}`).disabled = false;
+            }
+        }
+        if (addressData.locality) {
+            localitySelect.selectedValue = addressData.locality;
+            document.getElementById(`addressLocality_${id}`).value = addressData.locality;
+            document.getElementById(`addressLocality_${id}`).disabled = false;
+        }
+    }
+}
+
+// ============================================================
+// РОДИТЕЛИ
+// ============================================================
+function addParent(parentData = null) {
+    parentCounter++;
+    const container = document.getElementById('parentsContainer');
+    const id = parentCounter;
+    const html = `
+        <div class="parent-block" id="parentBlock_${id}">
+            <div class="block-header"><span class="block-title">👤 Родитель ${id}</span><span class="remove-block" onclick="removeParent(${id})">×</span></div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Тип родства</label><select class="form-control" id="parentRelation_${id}"><option value="Мать">Мать</option><option value="Отец">Отец</option><option value="Опекун">Опекун</option><option value="Другое">Другое</option></select></div>
+                <div class="form-group"><label class="form-label">ФИО</label><div class="person-search-wrapper"><input type="text" class="form-control person-search" id="parentName_${id}" placeholder="Введите ФИО" data-type="parent" data-id="${id}" value="${parentData?.full_name || ''}"><div class="suggestions" id="parentSuggestions_${id}"></div></div></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Дата рождения</label><input type="date" class="form-control" id="parentBirth_${id}" value="${parentData?.birth_date || ''}"></div>
+                <div class="form-group"><label class="form-label">Семейное положение</label><select class="form-control" id="parentMarital_${id}"><option value="">Не указано</option><option value="Замужем">Замужем</option><option value="Женат">Женат</option><option value="В разводе">В разводе</option><option value="Вдова">Вдова</option><option value="Вдовец">Вдовец</option></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Место работы</label><input type="text" class="form-control" id="parentWork_${id}" value="${parentData?.work_place || ''}" placeholder="Место работы"></div>
+                <div class="form-group"><label class="form-label">Должность</label><input type="text" class="form-control" id="parentPosition_${id}" value="${parentData?.position || ''}" placeholder="Должность"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Телефон</label><input type="text" class="form-control" id="parentPhone_${id}" value="${parentData?.phone || ''}" placeholder="+375 (XX) XXX-XX-XX"></div>
+                <div class="form-group"><label class="form-label">Адрес</label><input type="text" class="form-control" id="parentAddress_${id}" value="${parentData?.address || ''}" placeholder="Адрес"></div>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    const searchInput = document.getElementById(`parentName_${id}`);
+    const suggestions = document.getElementById(`parentSuggestions_${id}`);
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length < 2) { suggestions.classList.remove('show'); return; }
+        sbClient.from('parents').select('*').ilike('full_name', `%${query}%`).limit(5).then(({ data, error }) => {
+            if (error || !data || data.length === 0) { suggestions.classList.remove('show'); return; }
+            suggestions.innerHTML = data.map(p => `<div class="suggestion-item" onclick="selectParentFromDB('${p.id}', ${id})"><div class="name">${p.full_name}</div><div class="info">${p.relation || ''} ${p.work_place ? '· ' + p.work_place : ''}</div></div>`).join('');
+            suggestions.classList.add('show');
+        }).catch(() => {
+            suggestions.classList.remove('show');
+        });
+    });
+    document.addEventListener('click', function(e) { if (!e.target.closest('.person-search-wrapper')) suggestions.classList.remove('show'); });
+}
+function selectParentFromDB(parentId, blockId) {
+    sbClient.from('parents').select('*').eq('id', parentId).single().then(({ data, error }) => {
+        if (error || !data) return;
+        document.getElementById(`parentName_${blockId}`).value = data.full_name;
+        document.getElementById(`parentRelation_${blockId}`).value = data.relation || 'Мать';
+        document.getElementById(`parentBirth_${blockId}`).value = data.birth_date || '';
+        document.getElementById(`parentMarital_${blockId}`).value = data.marital_status || '';
+        document.getElementById(`parentWork_${blockId}`).value = data.work_place || '';
+        document.getElementById(`parentPosition_${blockId}`).value = data.position || '';
+        document.getElementById(`parentPhone_${blockId}`).value = data.phone || '';
+        document.getElementById(`parentAddress_${blockId}`).value = data.address || '';
+        document.getElementById(`parentSuggestions_${blockId}`).classList.remove('show');
+    }).catch(() => {});
+}
+function removeParent(id) { const block = document.getElementById(`parentBlock_${id}`); if (block) block.remove(); }
+
+// ============================================================
+// БРАТЬЯ/СЁСТРЫ
+// ============================================================
+function addSibling(siblingData = null) {
+    siblingCounter++;
+    const container = document.getElementById('siblingsContainer');
+    const id = siblingCounter;
+    const html = `
+        <div class="sibling-block" id="siblingBlock_${id}">
+            <div class="block-header"><span class="block-title"> Брат/сестра ${id}</span><span class="remove-block" onclick="removeSibling(${id})">×</span></div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Тип</label><select class="form-control" id="siblingType_${id}"><option value="Брат">Брат</option><option value="Сестра">Сестра</option></select></div>
+                <div class="form-group"><label class="form-label">ФИО</label><div class="person-search-wrapper"><input type="text" class="form-control person-search" id="siblingName_${id}" placeholder="Введите ФИО" data-type="sibling" data-id="${id}" value="${siblingData?.full_name || ''}"><div class="suggestions" id="siblingSuggestions_${id}"></div></div></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Дата рождения</label><input type="date" class="form-control" id="siblingBirth_${id}" value="${siblingData?.birth_date || ''}"></div>
+                <div class="form-group"><label class="form-label">Тип занятости</label><select class="form-control" id="siblingEmploymentType_${id}"><option value="учёба"> Учится</option><option value="работа">💼 Работает</option><option value="не работает">🚫 Не работает</option></select></div>
+            </div>
+            <div class="form-group"><label class="form-label">Место учёбы/работы</label><input type="text" class="form-control" id="siblingStudy_${id}" value="${siblingData?.study_work || ''}" placeholder="Место учёбы или работы"></div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
+                <div style="font-weight:600;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">📍 Адрес проживания</div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Адрес</label><input type="text" class="form-control" id="siblingAddress_${id}" value="${siblingData?.address || ''}" placeholder="г. Минск, ул. Пушкина 5"></div>
+                    <div class="form-group"><label class="form-label">Область</label><input type="text" class="form-control" id="siblingRegion_${id}" value="${siblingData?.region || ''}" placeholder="Минская"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Район</label><input type="text" class="form-control" id="siblingDistrict_${id}" value="${siblingData?.district || ''}" placeholder="Минский"></div>
+                    <div class="form-group"><label class="form-label">Населённый пункт</label><input type="text" class="form-control" id="siblingLocality_${id}" value="${siblingData?.locality || ''}" placeholder="Минск"></div>
+                </div>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    const searchInput = document.getElementById(`siblingName_${id}`);
+    const suggestions = document.getElementById(`siblingSuggestions_${id}`);
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length < 2) { suggestions.classList.remove('show'); return; }
+        sbClient.from('siblings').select('*').ilike('full_name', `%${query}%`).limit(5).then(({ data, error }) => {
+            if (error || !data || data.length === 0) { suggestions.classList.remove('show'); return; }
+            suggestions.innerHTML = data.map(s => `<div class="suggestion-item" onclick="selectSiblingFromDB('${s.id}', ${id})"><div class="name">${s.full_name}</div><div class="info">${s.type || ''} ${s.study_work ? '· ' + s.study_work : ''}</div></div>`).join('');
+            suggestions.classList.add('show');
+        }).catch(() => {});
+    });
+    document.addEventListener('click', function(e) { if (!e.target.closest('.person-search-wrapper')) suggestions.classList.remove('show'); });
+}
+function selectSiblingFromDB(siblingId, blockId) {
+    sbClient.from('siblings').select('*').eq('id', siblingId).single().then(({ data, error }) => {
+        if (error || !data) return;
+        document.getElementById(`siblingName_${blockId}`).value = data.full_name;
+        document.getElementById(`siblingType_${blockId}`).value = data.type || 'Брат';
+        document.getElementById(`siblingBirth_${blockId}`).value = data.birth_date || '';
+        document.getElementById(`siblingEmploymentType_${blockId}`).value = data.employment_type || 'учёба';
+        document.getElementById(`siblingStudy_${blockId}`).value = data.study_work || '';
+        document.getElementById(`siblingAddress_${blockId}`).value = data.address || '';
+        document.getElementById(`siblingRegion_${blockId}`).value = data.region || '';
+        document.getElementById(`siblingDistrict_${blockId}`).value = data.district || '';
+        document.getElementById(`siblingLocality_${blockId}`).value = data.locality || '';
+        document.getElementById(`siblingSuggestions_${blockId}`).classList.remove('show');
+    }).catch(() => {});
+}
+function removeSibling(id) { const block = document.getElementById(`siblingBlock_${id}`); if (block) block.remove(); }
+
+// ============================================================
+// ЗАГРУЗКА ГРУПП
+// ============================================================
+async function loadGroups(selectedId) {
+    const select = document.getElementById('groupId');
+    if (!select) return;
+
+    try {
+        const { data: groups, error } = await sbClient
+            .from('groups')
+            .select('*')
+            .eq('is_archived', false)
+            .order('name');
+
+        if (error) throw error;
+
+        if (!groups || groups.length === 0) {
+            select.innerHTML = '<option value="">— Нет доступных групп —</option>';
+            return;
+        }
+
+        let options = '';
+        groups.forEach(g => {
+            const selected = g.id === selectedId ? 'selected' : '';
+            options += `<option value="${g.id}" ${selected}>${g.name} (${g.type === 'sso' ? 'ССО' : 'ПТО'})</option>`;
+        });
+        select.innerHTML = options;
+
+        select.addEventListener('change', function() {
+            const groupId = this.value;
+            if (groupId) {
+                const group = groups.find(g => g.id === groupId);
+                const studentData = {};
+                document.querySelectorAll('.grade-input').forEach(input => {
+                    const course = input.dataset.course;
+                    const period = input.dataset.period;
+                    studentData[`grade_${course}_${period}`] = input.value || null;
+                });
+                renderGradeFields(studentData, group?.type || '');
+            }
+        });
+
+    } catch (error) {
+        console.error(' Ошибка загрузки групп:', error);
+        select.innerHTML = '<option value="">— Ошибка загрузки —</option>';
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА ДАННЫХ СТУДЕНТА
+// ============================================================
+async function loadStudentData() {
+    if (!studentId) {
+        showToast('❌ ID студента не указан', 'error');
+        setTimeout(() => window.location.href = '/students/index.html', 1500);
+        return;
+    }
+
+    try {
+        const { data: student, error } = await sbClient
+            .from('students')
+            .select('*')
+            .eq('id', studentId)
+            .single();
+
+        if (error) throw error;
+
+        if (!student) {
+            showToast(' Студент не найден', 'error');
+            setTimeout(() => window.location.href = '/students/index.html', 1500);
+            return;
+        }
+
+        document.getElementById('studentNameDisplay').textContent = student.full_name;
+
+        // Статус
+        document.getElementById('statusInfo').innerHTML = `
+            <strong>Статус:</strong> <span class="status-badge ${getStatusBadge(student.status)}">${getStatusText(student.status)}</span>
+            ${student.status === 'expelled' ? ` • Отчислен: ${student.expulsion_date || '—'} (приказ: ${student.expulsion_order || '—'})` : ''}
+        `;
+
+        // Основные данные
+        document.getElementById('fullName').value = student.full_name || '';
+        document.getElementById('gender').value = student.gender || '';
+        document.getElementById('birthDate').value = student.birth_date || '';
+        document.getElementById('citizenship').value = student.citizenship || '';
+
+        if (student.birth_date) {
+            const birth = new Date(student.birth_date);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const m = today.getMonth() - birth.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+            document.getElementById('ageDisplay').textContent = `${age} лет`;
+        }
+
+        // Телефон
+        if (student.phone) {
+            const parts = student.phone.split(' ');
+            if (parts.length >= 2) {
+                document.getElementById('phoneCode').value = parts[0] || '+375';
+                document.getElementById('phone').value = parts.slice(1).join(' ') || '';
+            } else {
+                document.getElementById('phone').value = student.phone;
+            }
+        }
+
+        // Образование
+        document.getElementById('school').value = student.school || '';
+        document.getElementById('schoolYear').value = student.school_year || '';
+        document.getElementById('schoolClass').value = student.school_class || '';
+        document.getElementById('avgGrade').value = student.avg_grade || '';
+
+        // ===== АДРЕСА ИЗ JSONB =====
+        if (student.addresses && Array.isArray(student.addresses) && student.addresses.length > 0) {
+            student.addresses.forEach(addr => {
+                addAddressCard(addr);
+            });
+        } else {
+            addAddressCard();
+        }
+
+        // ===== УЧЁТ =====
+        if (student.accounting_data && Array.isArray(student.accounting_data) && student.accounting_data.length > 0) {
+            const types = student.accounting_data.map(item => item.type);
+            document.querySelectorAll('#accountingTypes input[type="checkbox"]').forEach(cb => {
+                cb.checked = types.includes(cb.value);
+            });
+            
+            const container = document.getElementById('accountingBlocksContainer');
+            container.innerHTML = '';
+            student.accounting_data.forEach(item => {
+                container.innerHTML += `
+                    <div class="accounting-block" data-type="${item.type}">
+                        <div class="block-header">
+                            <span class="block-title">📌 ${item.type}</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Дата постановки на учёт</label>
+                                <input type="date" class="form-control accounting-start" value="${item.start || ''}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Дата снятия с учёта</label>
+                                <input type="date" class="form-control accounting-end" value="${item.end || ''}">
+                                <div class="form-hint">Оставьте пустым, если учёт активен</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else if (student.accounting_type && student.accounting_type.length > 0) {
+            document.querySelectorAll('#accountingTypes input[type="checkbox"]').forEach(cb => {
+                cb.checked = student.accounting_type.includes(cb.value);
+            });
+            updateAccountingBlocks();
+        }
+
+        // ===== ЦЕЛЕВОЕ ОБУЧЕНИЕ =====
+        if (student.target_training) {
+            document.getElementById('targetTraining').checked = true;
+            document.getElementById('targetTrainingBlock').classList.add('show');
+            document.getElementById('targetCustomer').value = student.target_customer || '';
+            document.getElementById('targetContract').value = student.target_contract || '';
+            document.getElementById('targetYears').value = student.target_years || '';
+        }
+
+        // ===== ОБЩЕЖИТИЕ =====
+        console.log('🏠 Данные студента:', student);
+        console.log('🏠 dormitory_info:', student.dormitory_info);
+        
+        const checkbox = document.getElementById('livesInDorm');
+        const block = document.getElementById('dormitoryBlock');
+        const dormBlockInput = document.getElementById('dormBlock');
+        const dormCheckInInput = document.getElementById('dormCheckIn');
+        const dormCheckOutInput = document.getElementById('dormCheckOut');
+        
+        // Проверяем наличие данных в dormitory_info
+        if (student.dormitory_info && typeof student.dormitory_info === 'object') {
+            console.log('🏠 У студента есть dormitory_info:', student.dormitory_info);
+            checkbox.checked = true;
+            block.classList.add('show');
+            
+            // Заполняем поля, проверяя разные возможные названия ключей
+            dormBlockInput.value = student.dormitory_info.block || student.dormitory_info.block_number || '';
+            dormCheckInInput.value = student.dormitory_info.check_in || '';
+            dormCheckOutInput.value = student.dormitory_info.check_out || '';
+            
+            console.log('🏠 Блок общежития ПОКАЗАН и заполнен');
+        } else {
+            console.log('🏠 У студента нет dormitory_info');
+            // Если данных нет, просто убеждаемся, что чекбокс снят и блок скрыт
+            checkbox.checked = false;
+            block.classList.remove('show');
+            dormBlockInput.value = '';
+            dormCheckInInput.value = '';
+            dormCheckOutInput.value = '';
+        }
+
+        // ===== ГРУППЫ =====
+        await loadGroups(student.group_id);
+
+        // ===== ОПРЕДЕЛЯЕМ ТИП ГРУППЫ =====
+        let groupType = '';
+        if (student.group_id) {
+            const { data: group } = await sbClient
+                .from('groups')
+                .select('type')
+                .eq('id', student.group_id)
+                .single();
+            if (group) {
+                groupType = group.type;
+            }
+        }
+
+        // ===== СРЕДНИЙ БАЛЛ ПО КУРСАМ =====
+        renderGradeFields(student, groupType);
+
+        // ===== РОДИТЕЛИ И БРАТЬЯ/СЁСТРЫ =====
+        await loadParentsAndSiblings();
+
+    } catch (error) {
+        console.error('❌ Ошибка загрузки студента:', error);
+        showToast('❌ Ошибка загрузки: ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА РОДИТЕЛЕЙ И БРАТЬЕВ/СЁСТЕР
+// ============================================================
+async function loadParentsAndSiblings() {
+    try {
+        // Родители
+        const { data: parentLinks } = await sbClient
+            .from('student_parents')
+            .select('parent_id')
+            .eq('student_id', studentId);
+
+        if (parentLinks && parentLinks.length > 0) {
+            const parentIds = parentLinks.map(l => l.parent_id);
+            const { data: parents } = await sbClient
+                .from('parents')
+                .select('*')
+                .in('id', parentIds);
+            
+            if (parents) {
+                parents.forEach(p => addParent(p));
+            }
+        }
+
+        // Братья/сёстры
+        const { data: siblingLinks } = await sbClient
+            .from('student_siblings')
+            .select('sibling_id')
+            .eq('student_id', studentId);
+
+        if (siblingLinks && siblingLinks.length > 0) {
+            const siblingIds = siblingLinks.map(l => l.sibling_id);
+            const { data: siblings } = await sbClient
+                .from('siblings')
+                .select('*')
+                .in('id', siblingIds);
+            
+            if (siblings) {
+                siblings.forEach(s => addSibling(s));
+            }
+        }
+
+    } catch (error) {
+        console.error('❌ Ошибка загрузки родственников:', error);
+    }
+}
+
+// ============================================================
+// СОХРАНЕНИЕ ИЗМЕНЕНИЙ
+// ============================================================
+async function saveStudent() {
+    const fullName = document.getElementById('fullName').value.trim();
+    const gender = document.getElementById('gender').value;
+    const groupId = document.getElementById('groupId').value;
+    const birthDate = document.getElementById('birthDate').value;
+    const citizenship = document.getElementById('citizenship').value;
+    const phoneCode = document.getElementById('phoneCode').value;
+    const phone = document.getElementById('phone').value.trim();
+    const school = document.getElementById('school').value.trim();
+    const schoolYear = document.getElementById('schoolYear').value;
+    const schoolClass = document.getElementById('schoolClass').value;
+    
+    let avgGradeRaw = document.getElementById('avgGrade').value.trim();
+    let avgGrade = null;
+    if (avgGradeRaw) {
+        const normalized = avgGradeRaw.replace(',', '.');
+        const num = parseFloat(normalized);
+        if (!isNaN(num) && num >= 0 && num <= 10) avgGrade = num;
+    }
+    
+    // ===== АДРЕСА ИЗ КАРТОЧЕК =====
+    const addressCards = document.querySelectorAll('.address-card');
+    const addresses = [];
+    addressCards.forEach(card => {
+        const id = card.id.replace('addressCard_', '');
+        const type = document.getElementById(`addressType_${id}`).value;
+        const region = document.getElementById(`addressRegion_${id}`).value.trim();
+        const district = document.getElementById(`addressDistrict_${id}`).value.trim();
+        const locality = document.getElementById(`addressLocality_${id}`).value.trim();
+        const street = document.getElementById(`addressStreet_${id}`).value.trim();
+        
+        if (region || district || locality || street) {
+            addresses.push({
+                type: type,
+                region: region,
+                district: district,
+                locality: locality,
+                street: street,
+                full: `${locality}${street ? ', ' + street : ''}`
+            });
+        }
+    });
+    
+    // ===== УЧЁТ =====
+    const accountingTypes = [];
+    const accountingData = [];
+    document.querySelectorAll('#accountingTypes input[type="checkbox"]:checked').forEach(cb => accountingTypes.push(cb.value));
+    document.querySelectorAll('.accounting-block').forEach(block => {
+        const type = block.dataset.type;
+        const start = block.querySelector('.accounting-start')?.value || '';
+        const end = block.querySelector('.accounting-end')?.value || '';
+        accountingData.push({ type, start, end });
+    });
+
+    // ===== СРЕДНИЙ БАЛЛ =====
+    const gradeData = {};
+    document.querySelectorAll('.grade-input').forEach(input => {
+        const course = input.dataset.course;
+        const period = input.dataset.period;
+        let val = input.value.trim();
+        if (val) {
+            const num = parseFloat(val.replace(',', '.'));
+            if (!isNaN(num) && num >= 0 && num <= 10) {
+                gradeData[`grade_${course}_${period}`] = num;
+            }
+        }
+    });
+
+    // ===== ЦЕЛЕВОЕ =====
+    const targetTraining = document.getElementById('targetTraining').checked;
+    const targetCustomer = document.getElementById('targetCustomer').value.trim();
+    const targetContract = document.getElementById('targetContract').value.trim();
+    const targetYears = document.getElementById('targetYears').value;
+
+    // ===== ОБЩЕЖИТИЕ =====
+    const livesInDorm = document.getElementById('livesInDorm').checked;
+    const dormBlock = document.getElementById('dormBlock').value.trim();
+    const dormCheckIn = document.getElementById('dormCheckIn').value;
+    const dormCheckOut = document.getElementById('dormCheckOut').value;
+    
+    // Формируем JSONB объект для dormitory_info
+    let dormitoryInfo = null;
+    if (livesInDorm && dormBlock) {
+        dormitoryInfo = {
+            block: dormBlock,
+            block_number: dormBlock,
+            check_in: dormCheckIn || null,
+            check_out: dormCheckOut || null
+        };
+    }
+
+    console.log(' Сохранение общежития:', { livesInDorm, dormBlock, dormitoryInfo });
+
+    if (!fullName) { showToast('❌ Введите ФИО', 'error'); return; }
+    if (!gender) { showToast('❌ Выберите пол', 'error'); return; }
+    if (!groupId) { showToast('❌ Выберите группу', 'error'); return; }
+
+    // ===== РОДИТЕЛИ =====
+    const parentBlocks = document.querySelectorAll('.parent-block');
+    const parentData = [];
+    parentBlocks.forEach(block => {
+        const id = block.id.replace('parentBlock_', '');
+        const name = document.getElementById(`parentName_${id}`).value.trim();
+        if (name) {
+            parentData.push({
+                full_name: name,
+                relation: document.getElementById(`parentRelation_${id}`).value,
+                birth_date: document.getElementById(`parentBirth_${id}`).value || null,
+                marital_status: document.getElementById(`parentMarital_${id}`).value || null,
+                work_place: document.getElementById(`parentWork_${id}`).value.trim() || null,
+                position: document.getElementById(`parentPosition_${id}`).value.trim() || null,
+                phone: document.getElementById(`parentPhone_${id}`).value.trim() || null,
+                address: document.getElementById(`parentAddress_${id}`).value.trim() || null
+            });
+        }
+    });
+
+    // ===== БРАТЬЯ/СЁСТРЫ =====
+    const siblingBlocks = document.querySelectorAll('.sibling-block');
+    const siblingData = [];
+    siblingBlocks.forEach(block => {
+        const id = block.id.replace('siblingBlock_', '');
+        const name = document.getElementById(`siblingName_${id}`).value.trim();
+        if (name) {
+            siblingData.push({
+                full_name: name,
+                type: document.getElementById(`siblingType_${id}`).value || 'Брат',
+                birth_date: document.getElementById(`siblingBirth_${id}`).value || null,
+                employment_type: document.getElementById(`siblingEmploymentType_${id}`).value || 'учёба',
+                study_work: document.getElementById(`siblingStudy_${id}`).value.trim() || null,
+                address: document.getElementById(`siblingAddress_${id}`).value.trim() || null,
+                region: document.getElementById(`siblingRegion_${id}`).value.trim() || null,
+                district: document.getElementById(`siblingDistrict_${id}`).value.trim() || null,
+                locality: document.getElementById(`siblingLocality_${id}`).value.trim() || null
+            });
+        }
+    });
+
+    const fullPhone = phone ? `${phoneCode} ${phone}` : '';
+
+    const updateData = {
+        full_name: fullName,
+        gender: gender,
+        group_id: groupId,
+        birth_date: birthDate || null,
+        citizenship: citizenship || null,
+        phone: fullPhone,
+        school: school || null,
+        school_year: schoolYear || null,
+        school_class: schoolClass || null,
+        avg_grade: avgGrade,
+        addresses: addresses,
+        accounting_type: accountingTypes,
+        accounting_data: accountingData,
+        target_training: targetTraining,
+        target_customer: targetCustomer || null,
+        target_contract: targetContract || null,
+        target_years: targetYears ? parseInt(targetYears) : null,
+        dormitory_info: dormitoryInfo,
+        updated_at: new Date().toISOString(),
+        ...gradeData
+    };
+
+    const btn = document.getElementById('saveStudentBtn');
+    btn.innerHTML = '⏳ Сохранение...';
+    btn.disabled = true;
+
+    try {
+        // 1. Обновляем студента
+        const { error: updateError } = await sbClient
+            .from('students')
+            .update(updateData)
+            .eq('id', studentId);
+
+        if (updateError) throw updateError;
+
+        // 2. Обновляем родителей
+        await sbClient.from('student_parents').delete().eq('student_id', studentId);
+        
+        for (const p of parentData) {
+            try {
+                let parentId;
+                const { data: existingParent } = await sbClient
+                    .from('parents')
+                    .select('id')
+                    .eq('full_name', p.full_name)
+                    .maybeSingle();
+                if (existingParent) {
+                    parentId = existingParent.id;
+                    await sbClient.from('parents').update(p).eq('id', parentId);
+                } else {
+                    const { data: newParent, error: parentError } = await sbClient
+                        .from('parents')
+                        .insert([p])
+                        .select();
+                    if (parentError) throw parentError;
+                    if (newParent && newParent.length > 0) parentId = newParent[0].id;
+                }
+                if (parentId) {
+                    await sbClient
+                        .from('student_parents')
+                        .insert([{ student_id: studentId, parent_id: parentId }]);
+                }
+            } catch (err) {
+                console.warn('⚠️ Ошибка при сохранении родителя:', err.message);
+            }
+        }
+
+        // 3. Обновляем братьев/сестёр
+        await sbClient.from('student_siblings').delete().eq('student_id', studentId);
+        
+        for (const s of siblingData) {
+            try {
+                let siblingId;
+                const { data: existingSibling } = await sbClient
+                    .from('siblings')
+                    .select('id')
+                    .eq('full_name', s.full_name)
+                    .maybeSingle();
+                if (existingSibling) {
+                    siblingId = existingSibling.id;
+                    await sbClient.from('siblings').update(s).eq('id', siblingId);
+                } else {
+                    const { data: newSibling, error: siblingError } = await sbClient
+                        .from('siblings')
+                        .insert([s])
+                        .select();
+                    if (siblingError) throw siblingError;
+                    if (newSibling && newSibling.length > 0) siblingId = newSibling[0].id;
+                }
+                if (siblingId) {
+                    await sbClient
+                        .from('student_siblings')
+                        .insert([{ student_id: studentId, sibling_id: siblingId }]);
+                }
+            } catch (err) {
+                console.warn('⚠️ Ошибка при сохранении брата/сестры:', err.message);
+            }
+        }
+
+        showToast('✅ Данные студента обновлены!', 'success');
+        setTimeout(() => {
+            window.location.href = `/students/profile.html?id=${studentId}`;
+        }, 1000);
+
+    } catch (error) {
+        console.error('❌ Ошибка сохранения:', error);
+        showToast('❌ Ошибка: ' + error.message, 'error');
+    } finally {
+        btn.innerHTML = '💾 Сохранить изменения';
+        btn.disabled = false;
+    }
+}
+
+document.getElementById('saveStudentBtn').onclick = saveStudent;
+document.getElementById('editStudentForm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        saveStudent();
+    }
+});
+
+// ============================================================
+// МОБИЛЬНОЕ МЕНЮ
+// ============================================================
+document.getElementById('menuToggle').onclick = () => {
+    document.getElementById('sidebar').classList.toggle('open');
+};
+if (window.innerWidth <= 768) document.getElementById('menuToggle').style.display = 'inline-block';
+window.onresize = () => {
+    if (window.innerWidth <= 768) {
+        document.getElementById('menuToggle').style.display = 'inline-block';
+    } else {
+        document.getElementById('menuToggle').style.display = 'none';
+        document.getElementById('sidebar').classList.remove('open');
+    }
+};
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================================
+loadUser();
+setupGradeMask();
+loadStudentData();
+</script>
+
+</body>
+</html>
