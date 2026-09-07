@@ -46,12 +46,16 @@ export default defineConfig({
         reports: path.resolve(__dirname, 'frontend/reports/index.html'),
         profile: path.resolve(__dirname, 'frontend/profile/index.html'),
         invites: path.resolve(__dirname, 'frontend/invites/index.html'),
-        register: path.resolve(__dirname, 'frontend/register/index.html')
+        register: path.resolve(__dirname, 'frontend/register/index.html'),
+        
+        // ====== НОВЫЕ СТРАНИЦЫ ======
+        pages: path.resolve(__dirname, 'frontend/pages/index.html'),
+        pagesDashboard: path.resolve(__dirname, 'frontend/pages/dashboard.html'),
       }
     }
   },
   
-  // ⚠️ ДОБАВЬТЕ ЭТОТ БЛОК!
+  // ⚠️ ВАЖНО: ДОБАВЬТЕ ЭТОТ ПЛАГИН!
   plugins: [
     {
       name: 'copy-redirects',
