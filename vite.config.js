@@ -9,6 +9,9 @@ export default defineConfig({
   root: path.resolve(__dirname, 'frontend'),
   base: '/',
   
+  // ⚠️ ДОБАВЬТЕ ЭТУ СТРОКУ!
+  publicDir: path.resolve(__dirname, 'frontend'),
+  
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
@@ -46,16 +49,11 @@ export default defineConfig({
         reports: path.resolve(__dirname, 'frontend/reports/index.html'),
         profile: path.resolve(__dirname, 'frontend/profile/index.html'),
         invites: path.resolve(__dirname, 'frontend/invites/index.html'),
-        register: path.resolve(__dirname, 'frontend/register/index.html'),
-        
-        // ====== НОВЫЕ СТРАНИЦЫ ======
-        pages: path.resolve(__dirname, 'frontend/pages/index.html'),
-        pagesDashboard: path.resolve(__dirname, 'frontend/pages/dashboard.html'),
+        register: path.resolve(__dirname, 'frontend/register/index.html')
       }
     }
   },
   
-  // ⚠️ ВАЖНО: ДОБАВЬТЕ ЭТОТ ПЛАГИН!
   plugins: [
     {
       name: 'copy-redirects',
