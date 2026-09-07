@@ -51,6 +51,20 @@ export default defineConfig({
     }
   },
   
+  // ⚠️ ДОБАВЬТЕ ЭТОТ БЛОК!
+  plugins: [
+    {
+      name: 'copy-redirects',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: '_redirects',
+          source: '/*    /index.html    200\n'
+        });
+      }
+    }
+  ],
+  
   server: {
     port: 3000,
     host: true,
