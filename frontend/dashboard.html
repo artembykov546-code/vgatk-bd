@@ -14,10 +14,8 @@
     <!-- ===== ЕДИНЫЙ ФАЙЛ ДИЗАЙНА ===== -->
     <link rel="stylesheet" href="/css/components.css">
     
-    <!-- ===== СКРИПТЫ СЕССИИ ===== -->
+    <!-- ===== SUPABASE ===== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="/js/session.js"></script>
-    <script src="/js/session-init.js"></script>
     
     <style>
         /* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ГЛАВНОЙ ===== */
@@ -270,83 +268,6 @@
             word-break: break-all;
         }
 
-        /* ===== TOAST УВЕДОМЛЕНИЯ ===== */
-        .toast-container {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 400px;
-            width: 100%;
-        }
-
-        .toast-notification {
-            padding: 14px 20px;
-            border-radius: var(--border-radius);
-            color: white;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: var(--shadow-modal);
-            animation: slideUp 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .toast-success {
-            background: var(--success);
-        }
-
-        .toast-error {
-            background: var(--danger);
-        }
-
-        .toast-info {
-            background: var(--primary-light);
-        }
-
-        .toast-notification .toast-close {
-            cursor: pointer;
-            font-size: 18px;
-            opacity: 0.7;
-            transition: var(--transition);
-            background: none;
-            border: none;
-            color: white;
-            padding: 0 4px;
-            line-height: 1;
-        }
-
-        .toast-notification .toast-close:hover {
-            opacity: 1;
-            transform: scale(1.1);
-        }
-
-        .toast-notification .toast-progress {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: rgba(255,255,255,0.4);
-            border-radius: 0 0 var(--border-radius) var(--border-radius);
-            animation: toastProgress 4s linear forwards;
-        }
-
-        @keyframes toastProgress {
-            from { width: 100%; }
-            to { width: 0%; }
-        }
-
-        .toast-notification {
-            position: relative;
-            overflow: hidden;
-        }
-
         /* ===== МОДАЛЬНОЕ ОКНО ЗАВЕРШЕНИЯ СЕССИИ ===== */
         .session-modal-overlay {
             display: none;
@@ -572,9 +493,6 @@
             <div>
                 <h1 class="page-title">🏠 Главная <small>панель управления</small></h1>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" onclick="location.reload()">🔄 Обновить</button>
-            </div>
         </div>
 
         <!-- ===== ОСНОВНАЯ СТАТИСТИКА ===== -->
@@ -741,31 +659,163 @@
 </div>
 
 <!-- ============================================================
-   SCRIPT — ИСПОЛЬЗУЕМ ГОТОВЫЙ SUPABASE
+   ВСТРОЕННЫЙ МОДУЛЬ СЕССИИ
    ============================================================ -->
 <script>
 // ============================================================
-// ПРОВЕРКА, ЧТО СЕССИЯ ЗАГРУЖЕНА
+// ВСТРОЕННЫЙ МОДУЛЬ УПРАВЛЕНИЯ СЕССИЕЙ
 // ============================================================
-if (typeof window.Session === 'undefined') {
-    console.error('❌ Модуль сессии не загружен!');
-}
+(function() {
+    'use strict';
 
+    const SUPABASE_URL = 'https://selbolepupendprhixas.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlbGJvbGVwdXBlbmRwcmhpeGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NjQzODgsImV4cCI6MjA5ODE0MDM4OH0.UpWEr6hEs9ytnDxnaQ7Uf3d_xDQLHO-eejkIw53o7EE';
+
+    let currentUser = null;
+    let deviceSessionId = null;
+    let supabaseClient = null;
+    let sessionCheckInterval = null;
+
+    function initSupabase() {
+        if (typeof window.supabase === 'undefined') {
+            console.error('❌ Supabase не загружен!');
+            return;
+        }
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase клиент создан');
+        } catch (error) {
+            console.error('❌ Ошибка создания Supabase клиента:', error);
+        }
+    }
+
+    function getDeviceSessionId() {
+        if (deviceSessionId) return deviceSessionId;
+        let sessionId = localStorage.getItem('deviceSessionId');
+        if (!sessionId) {
+            const ua = navigator.userAgent || '';
+            const screen = window.screen.width + 'x' + window.screen.height;
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 8);
+            const base = btoa(ua.substring(0, 50) + screen).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+            sessionId = 'device_' + base + '_' + timestamp + '_' + random;
+            localStorage.setItem('deviceSessionId', sessionId);
+        }
+        deviceSessionId = sessionId;
+        return deviceSessionId;
+    }
+
+    function loadUser() {
+        const savedUser = localStorage.getItem('currentUser');
+        if (!savedUser) return null;
+        try {
+            currentUser = JSON.parse(savedUser);
+            return currentUser;
+        } catch (e) {
+            localStorage.removeItem('currentUser');
+            return null;
+        }
+    }
+
+    async function checkSession() {
+        if (!supabaseClient) return true;
+        const savedUser = localStorage.getItem('currentUser');
+        if (!savedUser) {
+            showSessionEndedModal('Пожалуйста, войдите в систему.');
+            return false;
+        }
+        try {
+            const user = JSON.parse(savedUser);
+            const { data, error } = await supabaseClient
+                .from('users')
+                .select('id, session_version, active_session_id, is_active')
+                .eq('id', user.id)
+                .single();
+            if (error || !data) return true;
+            if (data.is_active === false) {
+                showSessionEndedModal('Ваш аккаунт был удалён или заблокирован.');
+                return false;
+            }
+            if (data.active_session_id && data.active_session_id !== deviceSessionId) {
+                showSessionEndedModal('Вы вошли на другом устройстве.');
+                return false;
+            }
+            if (data.session_version !== user.session_version) {
+                showSessionEndedModal('Пароль был изменён. Войдите заново.');
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function showSessionEndedModal(reason) {
+        const modal = document.getElementById('sessionModal');
+        if (modal) {
+            modal.querySelector('.modal-desc').textContent = reason || 'Ваша сессия была завершена.';
+            modal.classList.add('active');
+        }
+        if (sessionCheckInterval) {
+            clearInterval(sessionCheckInterval);
+            sessionCheckInterval = null;
+        }
+    }
+
+    async function initSession() {
+        console.log('🔐 Инициализация сессии...');
+        initSupabase();
+        getDeviceSessionId();
+        console.log('🆔 ID устройства:', deviceSessionId);
+        
+        const user = loadUser();
+        if (!user) {
+            window.location.href = '/index.html';
+            return false;
+        }
+        
+        currentUser = user;
+        console.log('✅ Сессия инициализирована, пользователь:', user.name || user.login);
+        return true;
+    }
+
+    function logout() {
+        localStorage.removeItem('currentUser');
+        if (sessionCheckInterval) {
+            clearInterval(sessionCheckInterval);
+            sessionCheckInterval = null;
+        }
+        window.location.href = '/index.html';
+    }
+
+    // Экспорт
+    window.Session = {
+        init: initSession,
+        check: checkSession,
+        logout: logout,
+        getUser: () => currentUser || loadUser(),
+        getDeviceId: () => deviceSessionId,
+        supabase: () => supabaseClient
+    };
+
+    console.log('✅ Модуль сессии загружен (встроенный)');
+})();
+</script>
+
+<!-- ============================================================
+   ОСНОВНОЙ СКРИПТ ДАШБОРДА
+   ============================================================ -->
+<script>
 // ============================================================
 // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 // ============================================================
 let refreshInterval = null;
-let sessionCheckInterval = null;
 let isInitialized = false;
 let currentEmployee = null;
-let dormRole = null;
 let isDormEmployee = false;
-let isEducator = false;
-let isHead = false;
-let isGuard = false;
 
 // ============================================================
-// ПОЛЬЗОВАТЕЛЬ
+// ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ
 // ============================================================
 function loadUser() {
     const user = window.Session.getUser();
@@ -774,14 +824,14 @@ function loadUser() {
         return false;
     }
     
-    document.getElementById('userNameDisplay').textContent = user.name || user.full_name || user.login;
+    document.getElementById('userNameDisplay').textContent = user.name || user.full_name || user.login || 'Пользователь';
     const roleMap = {
         'super_admin': 'Супер-Админ',
         'admin': 'Администратор',
         'teacher': 'Преподаватель',
         'viewer': 'Наблюдатель'
     };
-    document.getElementById('userRoleDisplay').textContent = roleMap[user.role] || user.role;
+    document.getElementById('userRoleDisplay').textContent = roleMap[user.role] || user.role || 'Пользователь';
     return true;
 }
 
@@ -801,19 +851,13 @@ async function loadEmployeeInfo() {
 
         if (!error && employee) {
             currentEmployee = employee;
-            dormRole = employee.dorm_role || null;
             isDormEmployee = !!employee.dorm_role;
-            isEducator = employee.dorm_role === 'educator';
-            isHead = employee.dorm_role === 'head';
-            isGuard = employee.dorm_role === 'guard';
 
-            // Показываем статистику общежития, если сотрудник работник общежития
             const dormStatsContainer = document.getElementById('dormStatsContainer');
             if (dormStatsContainer) {
                 dormStatsContainer.style.display = isDormEmployee ? 'grid' : 'none';
             }
 
-            // Если это работник общежития, загружаем статистику общежития
             if (isDormEmployee) {
                 loadDormStatistics();
             }
@@ -830,7 +874,6 @@ async function loadDormStatistics() {
     try {
         const sb = window.Session.supabase();
 
-        // Общее количество проживающих
         const { count: total, error: totalError } = await sb
             .from('students')
             .select('*', { count: 'exact', head: true })
@@ -839,7 +882,6 @@ async function loadDormStatistics() {
 
         if (totalError) throw totalError;
 
-        // По этажам
         const floor2Blocks = [1, 2, 3, 4, 5, 6, 7, 8, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
         const floor3Blocks = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 44, 45, 49];
 
@@ -857,7 +899,6 @@ async function loadDormStatistics() {
             if (floor3Blocks.includes(s.dorm_block)) floor3Count++;
         });
 
-        // По типам комнат
         const { data: roomData, error: roomError } = await sb
             .from('students')
             .select('dorm_room_type')
@@ -872,7 +913,6 @@ async function loadDormStatistics() {
             if (s.dorm_room_type === 'B') roomB++;
         });
 
-        // Обновляем DOM
         document.getElementById('dormTotal').textContent = total || 0;
         document.getElementById('dormFloor2').textContent = floor2Count;
         document.getElementById('dormFloor3').textContent = floor3Count;
@@ -951,7 +991,6 @@ async function loadStats() {
 // АВТООБНОВЛЕНИЕ СТАТИСТИКИ
 // ============================================================
 function startAutoRefresh() {
-    // Обновление статистики каждые 30 секунд
     if (refreshInterval) clearInterval(refreshInterval);
     refreshInterval = setInterval(() => {
         loadStats();
@@ -959,23 +998,12 @@ function startAutoRefresh() {
             loadDormStatistics();
         }
     }, 30000);
-    
-    // Проверка сессии каждые 10 секунд
-    if (sessionCheckInterval) clearInterval(sessionCheckInterval);
-    sessionCheckInterval = setInterval(() => {
-        if (!isInitialized) return;
-        window.Session.check();
-    }, 10000);
 }
 
 function stopAutoRefresh() {
     if (refreshInterval) {
         clearInterval(refreshInterval);
         refreshInterval = null;
-    }
-    if (sessionCheckInterval) {
-        clearInterval(sessionCheckInterval);
-        sessionCheckInterval = null;
     }
 }
 
@@ -1002,56 +1030,18 @@ if (menuToggle && sidebar) {
 }
 
 // ============================================================
-// ПРОВЕРКА СЕССИИ ПРИ ВОССТАНОВЛЕНИИ ФОКУСА
-// ============================================================
-document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible' && isInitialized) {
-        window.Session.check();
-        loadStats();
-        if (isDormEmployee) {
-            loadDormStatistics();
-        }
-    }
-});
-
-// ============================================================
-// ПРОВЕРКА СЕССИИ ПРИ ВОССТАНОВЛЕНИИ СЕТИ
-// ============================================================
-window.addEventListener('online', function() {
-    if (isInitialized) {
-        window.Session.check();
-        loadStats();
-        if (isDormEmployee) {
-            loadDormStatistics();
-        }
-    }
-});
-
-// ============================================================
-// ОСТАНОВКА ИНТЕРВАЛОВ ПРИ УХОДЕ
-// ============================================================
-window.addEventListener('beforeunload', stopAutoRefresh);
-
-// ============================================================
 // ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 async function initDashboard() {
     console.log('🚀 Инициализация дашборда...');
-    console.log('🆔 ID устройства:', window.Session.getDeviceId());
     
-    // Проверяем сессию
-    const isSessionValid = await window.Session.check();
-    if (!isSessionValid) {
-        console.log('🔒 Сессия невалидна');
-        return;
-    }
+    // Инициализируем сессию
+    const success = await window.Session.init();
+    if (!success) return;
     
     // Загружаем пользователя
     const isUserLoaded = loadUser();
-    if (!isUserLoaded) {
-        console.log('❌ Пользователь не загружен');
-        return;
-    }
+    if (!isUserLoaded) return;
     
     // Загружаем информацию о сотруднике
     await loadEmployeeInfo();
@@ -1090,7 +1080,6 @@ window.__dashboard = {
     loadStats,
     loadDormStatistics,
     refresh: loadStats,
-    checkSession: window.Session.check,
     user: window.Session.getUser,
     employee: () => currentEmployee
 };
