@@ -7,6 +7,13 @@
 
     async function init() {
         try {
+            // Проверяем, загружен ли Session модуль
+            if (typeof window.Session === 'undefined') {
+                console.error('❌ Модуль сессии не загружен!');
+                document.getElementById('userNameDisplay').textContent = 'Ошибка загрузки';
+                return;
+            }
+
             const success = await window.Session.init();
             if (!success) return;
             
@@ -21,7 +28,7 @@
             const roleDisplay = document.getElementById('userRoleDisplay');
             
             if (nameDisplay) {
-                nameDisplay.textContent = user.name || user.full_name || user.login;
+                nameDisplay.textContent = user.name || user.full_name || user.login || 'Пользователь';
             }
             
             if (roleDisplay) {
@@ -31,14 +38,14 @@
                     'teacher': 'Преподаватель',
                     'viewer': 'Наблюдатель'
                 };
-                roleDisplay.textContent = roleMap[user.role] || user.role;
+                roleDisplay.textContent = roleMap[user.role] || user.role || 'Пользователь';
             }
             
             console.log('✅ Пользователь загружен:', user.name || user.login);
             
         } catch (error) {
             console.error('❌ Ошибка инициализации сессии:', error);
-            window.location.href = '/index.html';
+            document.getElementById('userNameDisplay').textContent = 'Ошибка загрузки';
         }
     }
 
