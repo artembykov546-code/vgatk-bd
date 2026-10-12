@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обратная связь | vgatk_bd</title>
+
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Lobster&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/components.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/js/session.js"></script>
+    <script src="/js/components.js"></script>
+    <script src="/js/notifications.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/report-export.js"></script>
+    <script src="/js/components-loader.js"></script>
+
+    <style>
+        .page-container { max-width: 1100px; margin: 0 auto; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+        }
+        .page-title { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .page-title small { font-weight: 400; font-size: 14px; color: var(--text-muted); }
+
+        /* Кнопки */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 500;
+            border: 1px solid transparent; cursor: pointer; transition: var(--transition);
+            font-family: inherit; text-decoration: none;
+        }
+        .btn--primary { background: var(--primary); color: #fff; }
+        .btn--primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+        .btn--ghost   { background: transparent; color: var(--primary); border-color: var(--border); }
+        .btn--ghost:hover { background: rgba(0,0,0,.04); }
+        .btn--danger  { background: #ef4444; color: #fff; }
+        .btn--danger:hover { background: #dc2626; }
+
+        /* Фильтры статусов (только админам) */
+        .filters {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+        }
+        .filter {
+            padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+            background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+            cursor: pointer; transition: var(--transition);
+        }
+        .filter:hover { border-color: var(--primary-light); color: var(--primary); }
+        .filter.is-active {
+            background: var(--primary); color: #fff; border-color: var(--primary);
+        }
+
+        /* Список обращений */
+        .feedback-list { display: flex; flex-direction: column; gap: 14px; }
+
+        .feedback-card {
+            background: var(--bg-card); border-radius: 14px; padding: 18px 20px;
+            box-shadow: var(--shadow); border: 1px solid var(--border);
+            border-left-width: 5px; border-left-style: solid; border-left-color: var(--border);
+            transition: var(--transition);
+        }
+        .feedback-card:hover { box-shadow: var(--shadow-hover); }
+
+        .feedback-card[data-status="new"]         { border-left-color: #3b82f6; }
+        .feedback-card[data-status="in_progress"] { border-left-color: #f59e0b; }
+        .feedback-card[data-status="postponed"]   { border-left-color: #a855f7; }
+        .feedback-card[data-status="resolved"]    { border-left-color: #10b981; }
+        .feedback-card[data-status="rejected"]    { border-left-color: #ef4444; }
+
+        .feedback-card__head {
+            display: flex; justify-content: space-between; gap: 12px;
+            align-items: flex-start; margin-bottom: 8px;
+        }
+        .feedback-card__title {
+            font-size: 16px; font-weight: 600; color: var(--primary); margin: 0;
+        }
+        .feedback-card__meta {
+            font-size: 12px; color: var(--text-muted); margin-top: 2px;
+            display: flex; gap: 10px; flex-wrap: wrap;
+        }
+        .feedback-card__body {
+            margin-top: 10px; color: var(--text-primary); white-space: pre-wrap;
+            line-height: 1.5; font-size: 14px;
+        }
+
+        /* Бейджи */
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .3px;
+        }
+        .badge--status-new         { background: rgba(59,130,246,.12); color: #1d4ed8; }
+        .badge--status-in_progress { background: rgba(245,158,11,.15); color: #b45309; }
+        .badge--status-postponed   { background: rgba(168,85,247,.14); color: #7e22ce; }
+        .badge--status-resolved    { background: rgba(16,185,129,.14); color: #047857; }
+        .badge--status-rejected    { background: rgba(239,68,68,.14); color: #b91c1c; }
+
+        .badge--cat-access   { background: rgba(239,68,68,.10);  color: #b91c1c; }
+        .badge--cat-bug      { background: rgba(220,38,38,.12);  color: #991b1b; }
+        .badge--cat-feature  { background: rgba(16,185,129,.10); color: #047857; }
+        .badge--cat-question { background: rgba(59,130,246,.10); color: #1d4ed8; }
+        .badge--cat-other    { background: rgba(107,114,128,.10);color: #4b5563; }
+
+        .badge--prio-high    { background: rgba(239,68,68,.14);  color: #b91c1c; }
+        .badge--prio-normal  { background: rgba(107,114,128,.12);color: #4b5563; }
+        .badge--prio-low     { background: rgba(16,185,129,.10); color: #047857; }
+
+        /* Скриншоты-миниатюры */
+        .shots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .shots a {
+            display: block; width: 80px; height: 80px; border-radius: 8px;
+            overflow: hidden; border: 1px solid var(--border); background: var(--bg-main);
+        }
+        .shots img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* Ответ админа */
+        .reply {
+            margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+            background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.25);
+        }
+        .reply__head {
+            font-size: 12px; font-weight: 600; color: #047857; margin-bottom: 6px;
+            display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+        }
+        .reply__body { font-size: 14px; color: var(--text-primary); white-space: pre-wrap; }
+
+        /* Действия админа */
+        .admin-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+        /* Модальные окна */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,.45);
+            display: none; align-items: center; justify-content: center;
+            z-index: 9000; padding: 20px;
+        }
+        .modal-backdrop.is-open { display: flex; }
+        .modal {
+            background: #fff; border-radius: 14px; padding: 24px;
+            max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,.3);
+        }
+        .modal__title { font-size: 18px; font-weight: 700; color: var(--primary); margin: 0 0 16px; }
+        .modal__actions {
+            display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;
+        }
+
+        .form-row { margin-bottom: 14px; }
+        .form-row label {
+            display: block; font-size: 13px; font-weight: 600;
+            color: var(--text-primary); margin-bottom: 6px;
+        }
+        .form-row .hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        .input, .textarea, .select {
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-card);
+            font-family: inherit; font-size: 14px; color: var(--text-primary);
+            transition: var(--transition);
+        }
+        .input:focus, .textarea:focus, .select:focus {
+            outline: none; border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+        }
+        .textarea { min-height: 120px; resize: vertical; }
+
+        /* Категории-чипы в форме */
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip {
+            padding: 8px 14px; border-radius: 20px; font-size: 13px;
+            background: var(--bg-main); border: 1px solid var(--border);
+            cursor: pointer; transition: var(--transition); user-select: none;
+        }
+        .chip:hover { border-color: var(--primary-light); }
+        .chip.is-active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* Скриншоты в форме */
+        .shots-picker {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .shot-add {
+            width: 80px; height: 80px; border-radius: 10px;
+            border: 2px dashed var(--border); display: flex; align-items: center;
+            justify-content: center; font-size: 26px; color: var(--text-muted);
+            cursor: pointer; transition: var(--transition);
+        }
+        .shot-add:hover { border-color: var(--primary-light); color: var(--primary); }
+        .shot-thumb {
+            position: relative; width: 80px; height: 80px; border-radius: 10px;
+            overflow: hidden; border: 1px solid var(--border); background: var(--bg-main);
+        }
+        .shot-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .shot-thumb__remove {
+            position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+            border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; border: none;
+            font-size: 12px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; padding: 0;
+        }
+
+        /* Пусто */
+        .empty {
+            text-align: center; padding: 50px 20px; color: var(--text-muted);
+            background: var(--bg-card); border-radius: 14px; border: 1px dashed var(--border);
+        }
+        .empty__icon { font-size: 46px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<div id="header-container"></div>
+<div id="sidebar-container"></div>
+
+<main class="main-content">
+    <div class="page-container">
+
+        <div class="page-header">
+            <h1 class="page-title">📨 Обратная связь <small>сообщить о проблеме или предложении</small></h1>
+            <button class="btn btn--primary" id="btnNewFeedback">
+                <span>➕</span> Новое обращение
+            </button>
+        </div>
+
+        <!-- Фильтры — только для админов -->
+        <div class="filters" id="filtersRow" style="display:none;">
+            <button class="filter is-active" data-status="">Все</button>
+            <button class="filter" data-status="new">🆕 Новые</button>
+            <button class="filter" data-status="in_progress">🔄 В работе</button>
+            <button class="filter" data-status="postponed">⏸️ Отложено</button>
+            <button class="filter" data-status="resolved">✅ Исполнено</button>
+            <button class="filter" data-status="rejected">❌ Отклонено</button>
+        </div>
+
+        <!-- Список обращений -->
+        <div class="feedback-list" id="feedbackList">
+            <div class="empty" id="emptyState">
+                <div class="empty__icon">📭</div>
+                <div>Пока нет обращений</div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- ============ МОДАЛКА: НОВОЕ ОБРАЩЕНИЕ ============ -->
+<div class="modal-backdrop" id="modalNew">
+    <div class="modal">
+        <h2 class="modal__title">📝 Новое обращение</h2>
+
+        <div class="form-row">
+            <label>Категория <span style="color:#ef4444">*</span></label>
+            <div class="chips" id="categoryChips">
+                <div class="chip" data-value="access">🔐 Доступ</div>
+                <div class="chip" data-value="bug">🐞 Ошибка</div>
+                <div class="chip" data-value="feature">💡 Идея</div>
+                <div class="chip" data-value="question">❓ Вопрос</div>
+                <div class="chip is-active" data-value="other">💬 Другое</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label>Приоритет</label>
+            <div class="chips" id="priorityChips">
+                <div class="chip" data-value="low">🟢 Низкий</div>
+                <div class="chip is-active" data-value="normal">🟡 Обычный</div>
+                <div class="chip" data-value="high">🔴 Высокий</div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label>Тема <span style="color:#ef4444">*</span></label>
+            <input class="input" id="fbSubject" maxlength="150" placeholder="Кратко о проблеме">
+        </div>
+
+        <div class="form-row">
+            <label>Описание <span style="color:#ef4444">*</span></label>
+            <textarea class="textarea" id="fbMessage" maxlength="4000"
+                      placeholder="Что случилось, где, при каких обстоятельствах"></textarea>
+            <div class="hint"><span id="msgCount">0</span> / 4000</div>
+        </div>
+
+        <div class="form-row">
+            <label>Контакт для ответа <span style="color:var(--text-muted); font-weight:400;">(необязательно)</span></label>
+            <input class="input" id="fbContact" maxlength="120" placeholder="Телефон или email">
+        </div>
+
+        <div class="form-row">
+            <label>Скриншоты <span style="color:var(--text-muted); font-weight:400;">(до 10, до 5 МБ каждый)</span></label>
+            <div class="shots-picker" id="shotsPicker">
+                <div class="shot-add" id="shotAddBtn" title="Добавить файл">＋</div>
+            </div>
+            <input type="file" id="shotInput" accept="image/*" multiple hidden>
+        </div>
+
+        <div class="modal__actions">
+            <button class="btn btn--ghost" id="btnCancelNew">Отмена</button>
+            <button class="btn btn--primary" id="btnSendFeedback">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============ МОДАЛКА: ОТВЕТ АДМИНА ============ -->
+<div class="modal-backdrop" id="modalReply">
+    <div class="modal">
+        <h2 class="modal__title">🛡️ Ответ на обращение</h2>
+
+        <div class="form-row">
+            <label>Статус</label>
+            <select class="select" id="replyStatus">
+                <option value="in_progress">🔄 В работе</option>
+                <option value="postponed">⏸️ Отложено</option>
+                <option value="resolved">✅ Исполнено</option>
+                <option value="rejected">❌ Отклонено</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <label>Ответ работнику</label>
+            <textarea class="textarea" id="replyText" maxlength="2000"
+                      placeholder="Что сделано / почему отклонили / когда будет"></textarea>
+        </div>
+
+        <div class="modal__actions">
+            <button class="btn btn--ghost" id="btnCancelReply">Отмена</button>
+            <button class="btn btn--primary" id="btnSaveReply">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/feedback.js"></script>
+
+</body>
+</html>
